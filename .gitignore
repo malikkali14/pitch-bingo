@@ -226,3 +226,4 @@ node_modules/
 frontend/dist/
 backend/app/static/
 .DS_Store
+*.tsbuildinfo
