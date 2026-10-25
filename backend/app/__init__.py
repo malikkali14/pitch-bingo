@@ -1,0 +1,1 @@
+"""Pitch Bingo backend."""
