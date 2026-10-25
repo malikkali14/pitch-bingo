@@ -1,0 +1,1121 @@
+{
+  "match_id": "syn-4242",
+  "seed": 4242,
+  "competition": "Synthetic League",
+  "season": "2026-27",
+  "matchday": 24,
+  "kickoff_utc": "2026-09-12T14:00:00Z",
+  "venue": {
+    "name": "Northbridge Park",
+    "city": "Northbridge",
+    "capacity": 38500
+  },
+  "conditions": {
+    "weather": "windy",
+    "temperature_c": 12,
+    "wind_kmh": 3
+  },
+  "referee": {
+    "id": "REF-01",
+    "name": "Corwin Haldane",
+    "strictness": 0.37
+  },
+  "home_team_id": "NBA",
+  "away_team_id": "KVL",
+  "teams": [
+    {
+      "id": "NBA",
+      "name": "Northbridge Athletic",
+      "short_name": "Northbridge",
+      "primary_color": "#1F4E9C",
+      "secondary_color": "#F2C230",
+      "formation": "4-3-3",
+      "coach": "Greta Lindhoff",
+      "style": {
+        "possession": 0.37,
+        "pressing": 0.46,
+        "tempo": 0.76,
+        "directness": 0.39
+      },
+      "players": [
+        {
+          "id": "NBA-01",
+          "full_name": "Perrin Marlowe",
+          "surname": "Marlowe",
+          "shirt_number": 1,
+          "position": "GK",
+          "preferred_foot": "left",
+          "age": 29,
+          "attributes": {
+            "pace": 68,
+            "passing": 59,
+            "shooting": 54,
+            "defending": 76,
+            "discipline": 73
+          },
+          "top_speed_kmh": 31.9,
+          "season": {
+            "appearances": 4,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-02",
+          "full_name": "Lorcan Kowalczek",
+          "surname": "Kowalczek",
+          "shirt_number": 37,
+          "position": "RB",
+          "preferred_foot": "right",
+          "age": 19,
+          "attributes": {
+            "pace": 84,
+            "passing": 66,
+            "shooting": 47,
+            "defending": 72,
+            "discipline": 70
+          },
+          "top_speed_kmh": 33.7,
+          "season": {
+            "appearances": 7,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "NBA-03",
+          "full_name": "Haruto Fennick",
+          "surname": "Fennick",
+          "shirt_number": 21,
+          "position": "CB",
+          "preferred_foot": "right",
+          "age": 27,
+          "attributes": {
+            "pace": 59,
+            "passing": 64,
+            "shooting": 57,
+            "defending": 80,
+            "discipline": 76
+          },
+          "top_speed_kmh": 30.8,
+          "season": {
+            "appearances": 4,
+            "goals": 1,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-04",
+          "full_name": "Soren Elsworth",
+          "surname": "Elsworth",
+          "shirt_number": 29,
+          "position": "CB",
+          "preferred_foot": "right",
+          "age": 18,
+          "attributes": {
+            "pace": 60,
+            "passing": 68,
+            "shooting": 52,
+            "defending": 78,
+            "discipline": 57
+          },
+          "top_speed_kmh": 30.9,
+          "season": {
+            "appearances": 5,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-05",
+          "full_name": "Anselm Asante-Boyd",
+          "surname": "Asante-Boyd",
+          "shirt_number": 20,
+          "position": "LB",
+          "preferred_foot": "right",
+          "age": 31,
+          "attributes": {
+            "pace": 77,
+            "passing": 75,
+            "shooting": 58,
+            "defending": 66,
+            "discipline": 84
+          },
+          "top_speed_kmh": 32.9,
+          "season": {
+            "appearances": 6,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-06",
+          "full_name": "Ximo Stannard",
+          "surname": "Stannard",
+          "shirt_number": 4,
+          "position": "DM",
+          "preferred_foot": "right",
+          "age": 23,
+          "attributes": {
+            "pace": 70,
+            "passing": 76,
+            "shooting": 66,
+            "defending": 77,
+            "discipline": 62
+          },
+          "top_speed_kmh": 32.1,
+          "season": {
+            "appearances": 8,
+            "goals": 1,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-07",
+          "full_name": "Ivo Castellano",
+          "surname": "Castellano",
+          "shirt_number": 18,
+          "position": "CM",
+          "preferred_foot": "left",
+          "age": 32,
+          "attributes": {
+            "pace": 64,
+            "passing": 76,
+            "shooting": 43,
+            "defending": 50,
+            "discipline": 84
+          },
+          "top_speed_kmh": 31.4,
+          "season": {
+            "appearances": 7,
+            "goals": 1,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-08",
+          "full_name": "Matteus Kettleburn",
+          "surname": "Kettleburn",
+          "shirt_number": 2,
+          "position": "CM",
+          "preferred_foot": "right",
+          "age": 29,
+          "attributes": {
+            "pace": 59,
+            "passing": 68,
+            "shooting": 51,
+            "defending": 58,
+            "discipline": 70
+          },
+          "top_speed_kmh": 30.8,
+          "season": {
+            "appearances": 8,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-09",
+          "full_name": "Amadou Yardley",
+          "surname": "Yardley",
+          "shirt_number": 16,
+          "position": "RW",
+          "preferred_foot": "right",
+          "age": 26,
+          "attributes": {
+            "pace": 73,
+            "passing": 50,
+            "shooting": 89,
+            "defending": 56,
+            "discipline": 65
+          },
+          "top_speed_kmh": 32.4,
+          "season": {
+            "appearances": 5,
+            "goals": 1,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-10",
+          "full_name": "Corin Ashgrove",
+          "surname": "Ashgrove",
+          "shirt_number": 10,
+          "position": "ST",
+          "preferred_foot": "right",
+          "age": 30,
+          "attributes": {
+            "pace": 82,
+            "passing": 51,
+            "shooting": 71,
+            "defending": 46,
+            "discipline": 68
+          },
+          "top_speed_kmh": 33.5,
+          "season": {
+            "appearances": 11,
+            "goals": 2,
+            "assists": 5,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-11",
+          "full_name": "Ugo Blackthorn",
+          "surname": "Blackthorn",
+          "shirt_number": 15,
+          "position": "LW",
+          "preferred_foot": "right",
+          "age": 25,
+          "attributes": {
+            "pace": 71,
+            "passing": 69,
+            "shooting": 63,
+            "defending": 47,
+            "discipline": 69
+          },
+          "top_speed_kmh": 32.2,
+          "season": {
+            "appearances": 11,
+            "goals": 6,
+            "assists": 4,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "NBA-12",
+          "full_name": "Matteus Pennyworth",
+          "surname": "Pennyworth",
+          "shirt_number": 24,
+          "position": "GK",
+          "preferred_foot": "left",
+          "age": 33,
+          "attributes": {
+            "pace": 69,
+            "passing": 60,
+            "shooting": 61,
+            "defending": 67,
+            "discipline": 70
+          },
+          "top_speed_kmh": 32.0,
+          "season": {
+            "appearances": 10,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-13",
+          "full_name": "Chidi Eastwell",
+          "surname": "Eastwell",
+          "shirt_number": 3,
+          "position": "CB",
+          "preferred_foot": "right",
+          "age": 28,
+          "attributes": {
+            "pace": 63,
+            "passing": 79,
+            "shooting": 52,
+            "defending": 77,
+            "discipline": 58
+          },
+          "top_speed_kmh": 31.3,
+          "season": {
+            "appearances": 11,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "NBA-14",
+          "full_name": "Zeph Montanari",
+          "surname": "Montanari",
+          "shirt_number": 5,
+          "position": "RB",
+          "preferred_foot": "left",
+          "age": 30,
+          "attributes": {
+            "pace": 80,
+            "passing": 70,
+            "shooting": 57,
+            "defending": 70,
+            "discipline": 50
+          },
+          "top_speed_kmh": 33.2,
+          "season": {
+            "appearances": 12,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "NBA-15",
+          "full_name": "Hale Ivybridge",
+          "surname": "Ivybridge",
+          "shirt_number": 33,
+          "position": "CM",
+          "preferred_foot": "right",
+          "age": 21,
+          "attributes": {
+            "pace": 55,
+            "passing": 87,
+            "shooting": 47,
+            "defending": 55,
+            "discipline": 74
+          },
+          "top_speed_kmh": 30.3,
+          "season": {
+            "appearances": 6,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-16",
+          "full_name": "Bram Kingsmere",
+          "surname": "Kingsmere",
+          "shirt_number": 36,
+          "position": "DM",
+          "preferred_foot": "right",
+          "age": 21,
+          "attributes": {
+            "pace": 66,
+            "passing": 75,
+            "shooting": 55,
+            "defending": 78,
+            "discipline": 83
+          },
+          "top_speed_kmh": 31.6,
+          "season": {
+            "appearances": 11,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 2
+          }
+        },
+        {
+          "id": "NBA-17",
+          "full_name": "Caius Lindqvist",
+          "surname": "Lindqvist",
+          "shirt_number": 8,
+          "position": "AM",
+          "preferred_foot": "right",
+          "age": 19,
+          "attributes": {
+            "pace": 62,
+            "passing": 91,
+            "shooting": 76,
+            "defending": 35,
+            "discipline": 75
+          },
+          "top_speed_kmh": 31.1,
+          "season": {
+            "appearances": 6,
+            "goals": 1,
+            "assists": 1,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "NBA-18",
+          "full_name": "Tavi Calloway",
+          "surname": "Calloway",
+          "shirt_number": 9,
+          "position": "LW",
+          "preferred_foot": "left",
+          "age": 32,
+          "attributes": {
+            "pace": 65,
+            "passing": 83,
+            "shooting": 88,
+            "defending": 50,
+            "discipline": 58
+          },
+          "top_speed_kmh": 31.5,
+          "season": {
+            "appearances": 7,
+            "goals": 5,
+            "assists": 2,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "NBA-19",
+          "full_name": "Yannick Brancati",
+          "surname": "Brancati",
+          "shirt_number": 28,
+          "position": "RW",
+          "preferred_foot": "right",
+          "age": 19,
+          "attributes": {
+            "pace": 65,
+            "passing": 77,
+            "shooting": 71,
+            "defending": 57,
+            "discipline": 77
+          },
+          "top_speed_kmh": 31.5,
+          "season": {
+            "appearances": 7,
+            "goals": 3,
+            "assists": 1,
+            "yellow_cards": 2
+          }
+        },
+        {
+          "id": "NBA-20",
+          "full_name": "Dorian Thornbury",
+          "surname": "Thornbury",
+          "shirt_number": 14,
+          "position": "ST",
+          "preferred_foot": "left",
+          "age": 20,
+          "attributes": {
+            "pace": 81,
+            "passing": 68,
+            "shooting": 72,
+            "defending": 42,
+            "discipline": 81
+          },
+          "top_speed_kmh": 33.4,
+          "season": {
+            "appearances": 12,
+            "goals": 6,
+            "assists": 6,
+            "yellow_cards": 4
+          }
+        }
+      ],
+      "lineup": [
+        "NBA-01",
+        "NBA-02",
+        "NBA-03",
+        "NBA-04",
+        "NBA-05",
+        "NBA-06",
+        "NBA-07",
+        "NBA-08",
+        "NBA-09",
+        "NBA-10",
+        "NBA-11"
+      ],
+      "bench": [
+        "NBA-12",
+        "NBA-13",
+        "NBA-14",
+        "NBA-15",
+        "NBA-16",
+        "NBA-17",
+        "NBA-18",
+        "NBA-19",
+        "NBA-20"
+      ],
+      "spots": {
+        "NBA-01": [
+          5,
+          34
+        ],
+        "NBA-02": [
+          28,
+          8
+        ],
+        "NBA-03": [
+          22,
+          25
+        ],
+        "NBA-04": [
+          22,
+          43
+        ],
+        "NBA-05": [
+          28,
+          60
+        ],
+        "NBA-06": [
+          40,
+          34
+        ],
+        "NBA-07": [
+          52,
+          20
+        ],
+        "NBA-08": [
+          52,
+          48
+        ],
+        "NBA-09": [
+          75,
+          10
+        ],
+        "NBA-10": [
+          82,
+          34
+        ],
+        "NBA-11": [
+          75,
+          58
+        ]
+      }
+    },
+    {
+      "id": "KVL",
+      "name": "Kestrel Vale",
+      "short_name": "Kestrel",
+      "primary_color": "#B3262E",
+      "secondary_color": "#FFFFFF",
+      "formation": "4-2-3-1",
+      "coach": "Edmund Farrow",
+      "style": {
+        "possession": 0.52,
+        "pressing": 0.37,
+        "tempo": 0.4,
+        "directness": 0.48
+      },
+      "players": [
+        {
+          "id": "KVL-01",
+          "full_name": "Haruto Delcastro",
+          "surname": "Delcastro",
+          "shirt_number": 1,
+          "position": "GK",
+          "preferred_foot": "right",
+          "age": 26,
+          "attributes": {
+            "pace": 81,
+            "passing": 64,
+            "shooting": 55,
+            "defending": 72,
+            "discipline": 67
+          },
+          "top_speed_kmh": 33.4,
+          "season": {
+            "appearances": 9,
+            "goals": 1,
+            "assists": 0,
+            "yellow_cards": 2
+          }
+        },
+        {
+          "id": "KVL-02",
+          "full_name": "Bakari Westbrook",
+          "surname": "Westbrook",
+          "shirt_number": 7,
+          "position": "RB",
+          "preferred_foot": "right",
+          "age": 32,
+          "attributes": {
+            "pace": 87,
+            "passing": 65,
+            "shooting": 51,
+            "defending": 72,
+            "discipline": 66
+          },
+          "top_speed_kmh": 34.1,
+          "season": {
+            "appearances": 12,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 2
+          }
+        },
+        {
+          "id": "KVL-03",
+          "full_name": "Bakari Adeyemo",
+          "surname": "Adeyemo",
+          "shirt_number": 22,
+          "position": "CB",
+          "preferred_foot": "left",
+          "age": 32,
+          "attributes": {
+            "pace": 71,
+            "passing": 69,
+            "shooting": 40,
+            "defending": 79,
+            "discipline": 71
+          },
+          "top_speed_kmh": 32.2,
+          "season": {
+            "appearances": 5,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-04",
+          "full_name": "Femi Haugland",
+          "surname": "Haugland",
+          "shirt_number": 30,
+          "position": "CB",
+          "preferred_foot": "right",
+          "age": 23,
+          "attributes": {
+            "pace": 68,
+            "passing": 72,
+            "shooting": 60,
+            "defending": 84,
+            "discipline": 81
+          },
+          "top_speed_kmh": 31.9,
+          "season": {
+            "appearances": 8,
+            "goals": 0,
+            "assists": 1,
+            "yellow_cards": 2
+          }
+        },
+        {
+          "id": "KVL-05",
+          "full_name": "Osric Ferrandi",
+          "surname": "Ferrandi",
+          "shirt_number": 21,
+          "position": "LB",
+          "preferred_foot": "right",
+          "age": 34,
+          "attributes": {
+            "pace": 89,
+            "passing": 67,
+            "shooting": 62,
+            "defending": 81,
+            "discipline": 74
+          },
+          "top_speed_kmh": 34.3,
+          "season": {
+            "appearances": 6,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-06",
+          "full_name": "Chidi Ashcombe",
+          "surname": "Ashcombe",
+          "shirt_number": 4,
+          "position": "DM",
+          "preferred_foot": "left",
+          "age": 26,
+          "attributes": {
+            "pace": 79,
+            "passing": 84,
+            "shooting": 64,
+            "defending": 74,
+            "discipline": 63
+          },
+          "top_speed_kmh": 33.1,
+          "season": {
+            "appearances": 5,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-07",
+          "full_name": "Jabari Ingleby",
+          "surname": "Ingleby",
+          "shirt_number": 8,
+          "position": "DM",
+          "preferred_foot": "right",
+          "age": 22,
+          "attributes": {
+            "pace": 66,
+            "passing": 72,
+            "shooting": 61,
+            "defending": 66,
+            "discipline": 69
+          },
+          "top_speed_kmh": 31.6,
+          "season": {
+            "appearances": 10,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "KVL-08",
+          "full_name": "Lamine Novaczek",
+          "surname": "Novaczek",
+          "shirt_number": 24,
+          "position": "RW",
+          "preferred_foot": "left",
+          "age": 28,
+          "attributes": {
+            "pace": 80,
+            "passing": 66,
+            "shooting": 95,
+            "defending": 55,
+            "discipline": 70
+          },
+          "top_speed_kmh": 33.2,
+          "season": {
+            "appearances": 4,
+            "goals": 2,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-09",
+          "full_name": "Tavi Varleigh",
+          "surname": "Varleigh",
+          "shirt_number": 39,
+          "position": "AM",
+          "preferred_foot": "left",
+          "age": 33,
+          "attributes": {
+            "pace": 72,
+            "passing": 82,
+            "shooting": 73,
+            "defending": 58,
+            "discipline": 67
+          },
+          "top_speed_kmh": 32.3,
+          "season": {
+            "appearances": 9,
+            "goals": 1,
+            "assists": 1,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-10",
+          "full_name": "Nevin Juniper",
+          "surname": "Juniper",
+          "shirt_number": 29,
+          "position": "LW",
+          "preferred_foot": "right",
+          "age": 25,
+          "attributes": {
+            "pace": 78,
+            "passing": 61,
+            "shooting": 84,
+            "defending": 47,
+            "discipline": 61
+          },
+          "top_speed_kmh": 33.0,
+          "season": {
+            "appearances": 5,
+            "goals": 1,
+            "assists": 1,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-11",
+          "full_name": "Yuri Vasquero",
+          "surname": "Vasquero",
+          "shirt_number": 33,
+          "position": "ST",
+          "preferred_foot": "right",
+          "age": 21,
+          "attributes": {
+            "pace": 87,
+            "passing": 65,
+            "shooting": 84,
+            "defending": 48,
+            "discipline": 59
+          },
+          "top_speed_kmh": 34.1,
+          "season": {
+            "appearances": 5,
+            "goals": 4,
+            "assists": 0,
+            "yellow_cards": 2
+          }
+        },
+        {
+          "id": "KVL-12",
+          "full_name": "Bram Oakhurst",
+          "surname": "Oakhurst",
+          "shirt_number": 19,
+          "position": "GK",
+          "preferred_foot": "left",
+          "age": 23,
+          "attributes": {
+            "pace": 62,
+            "passing": 67,
+            "shooting": 58,
+            "defending": 81,
+            "discipline": 73
+          },
+          "top_speed_kmh": 31.1,
+          "season": {
+            "appearances": 9,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-13",
+          "full_name": "Ekon Lowther",
+          "surname": "Lowther",
+          "shirt_number": 34,
+          "position": "CB",
+          "preferred_foot": "right",
+          "age": 29,
+          "attributes": {
+            "pace": 57,
+            "passing": 73,
+            "shooting": 56,
+            "defending": 78,
+            "discipline": 65
+          },
+          "top_speed_kmh": 30.6,
+          "season": {
+            "appearances": 5,
+            "goals": 0,
+            "assists": 1,
+            "yellow_cards": 2
+          }
+        },
+        {
+          "id": "KVL-14",
+          "full_name": "Ulric Nwankwe",
+          "surname": "Nwankwe",
+          "shirt_number": 20,
+          "position": "RB",
+          "preferred_foot": "left",
+          "age": 22,
+          "attributes": {
+            "pace": 76,
+            "passing": 69,
+            "shooting": 44,
+            "defending": 88,
+            "discipline": 65
+          },
+          "top_speed_kmh": 32.8,
+          "season": {
+            "appearances": 10,
+            "goals": 1,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-15",
+          "full_name": "Kaito Wetherall",
+          "surname": "Wetherall",
+          "shirt_number": 18,
+          "position": "CM",
+          "preferred_foot": "right",
+          "age": 27,
+          "attributes": {
+            "pace": 63,
+            "passing": 71,
+            "shooting": 44,
+            "defending": 40,
+            "discipline": 67
+          },
+          "top_speed_kmh": 31.3,
+          "season": {
+            "appearances": 11,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 2
+          }
+        },
+        {
+          "id": "KVL-16",
+          "full_name": "Bram Moravec",
+          "surname": "Moravec",
+          "shirt_number": 37,
+          "position": "DM",
+          "preferred_foot": "right",
+          "age": 25,
+          "attributes": {
+            "pace": 71,
+            "passing": 81,
+            "shooting": 54,
+            "defending": 74,
+            "discipline": 63
+          },
+          "top_speed_kmh": 32.2,
+          "season": {
+            "appearances": 4,
+            "goals": 0,
+            "assists": 0,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "KVL-17",
+          "full_name": "Pascoe Ruiz-Albar",
+          "surname": "Ruiz-Albar",
+          "shirt_number": 32,
+          "position": "AM",
+          "preferred_foot": "left",
+          "age": 24,
+          "attributes": {
+            "pace": 57,
+            "passing": 74,
+            "shooting": 84,
+            "defending": 46,
+            "discipline": 66
+          },
+          "top_speed_kmh": 30.6,
+          "season": {
+            "appearances": 10,
+            "goals": 7,
+            "assists": 0,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "KVL-18",
+          "full_name": "Elio Thursfield",
+          "surname": "Thursfield",
+          "shirt_number": 3,
+          "position": "LW",
+          "preferred_foot": "right",
+          "age": 31,
+          "attributes": {
+            "pace": 90,
+            "passing": 66,
+            "shooting": 73,
+            "defending": 50,
+            "discipline": 65
+          },
+          "top_speed_kmh": 34.4,
+          "season": {
+            "appearances": 4,
+            "goals": 2,
+            "assists": 3,
+            "yellow_cards": 0
+          }
+        },
+        {
+          "id": "KVL-19",
+          "full_name": "Tendai Dunmere",
+          "surname": "Dunmere",
+          "shirt_number": 38,
+          "position": "RW",
+          "preferred_foot": "right",
+          "age": 30,
+          "attributes": {
+            "pace": 77,
+            "passing": 88,
+            "shooting": 85,
+            "defending": 35,
+            "discipline": 72
+          },
+          "top_speed_kmh": 32.9,
+          "season": {
+            "appearances": 12,
+            "goals": 3,
+            "assists": 2,
+            "yellow_cards": 1
+          }
+        },
+        {
+          "id": "KVL-20",
+          "full_name": "Aldric Garrowby",
+          "surname": "Garrowby",
+          "shirt_number": 25,
+          "position": "ST",
+          "preferred_foot": "right",
+          "age": 20,
+          "attributes": {
+            "pace": 73,
+            "passing": 55,
+            "shooting": 71,
+            "defending": 54,
+            "discipline": 66
+          },
+          "top_speed_kmh": 32.4,
+          "season": {
+            "appearances": 4,
+            "goals": 1,
+            "assists": 0,
+            "yellow_cards": 0
+          }
+        }
+      ],
+      "lineup": [
+        "KVL-01",
+        "KVL-02",
+        "KVL-03",
+        "KVL-04",
+        "KVL-05",
+        "KVL-06",
+        "KVL-07",
+        "KVL-08",
+        "KVL-09",
+        "KVL-10",
+        "KVL-11"
+      ],
+      "bench": [
+        "KVL-12",
+        "KVL-13",
+        "KVL-14",
+        "KVL-15",
+        "KVL-16",
+        "KVL-17",
+        "KVL-18",
+        "KVL-19",
+        "KVL-20"
+      ],
+      "spots": {
+        "KVL-01": [
+          5,
+          34
+        ],
+        "KVL-02": [
+          28,
+          8
+        ],
+        "KVL-03": [
+          22,
+          25
+        ],
+        "KVL-04": [
+          22,
+          43
+        ],
+        "KVL-05": [
+          28,
+          60
+        ],
+        "KVL-06": [
+          42,
+          24
+        ],
+        "KVL-07": [
+          42,
+          44
+        ],
+        "KVL-08": [
+          68,
+          10
+        ],
+        "KVL-09": [
+          66,
+          34
+        ],
+        "KVL-10": [
+          68,
+          58
+        ],
+        "KVL-11": [
+          82,
+          34
+        ]
+      }
+    }
+  ]
+}

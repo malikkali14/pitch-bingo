@@ -1,0 +1,642 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchbingo.example/schemas/event.schema.json",
+  "title": "Pitch Bingo match event",
+  "description": "One line of events.jsonl (spec 6.3 and 6.4).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "seq",
+    "t",
+    "period",
+    "clock",
+    "type",
+    "team_id",
+    "player_id",
+    "x",
+    "y",
+    "possession_id",
+    "under_pressure",
+    "tags"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^e[0-9]{6}$"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "t": {
+      "type": "number",
+      "minimum": 0
+    },
+    "period": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "clock": {
+      "type": "string",
+      "pattern": "^[0-9]{2}:[0-9]{2}$|^(45|90)\\+[0-9]+:[0-9]{2}$"
+    },
+    "type": {
+      "enum": [
+        "period_start",
+        "period_end",
+        "kickoff",
+        "pass",
+        "carry",
+        "shot",
+        "goal",
+        "save",
+        "tackle",
+        "interception",
+        "clearance",
+        "block",
+        "pressure",
+        "duel",
+        "foul",
+        "advantage",
+        "card",
+        "offside",
+        "throw_in",
+        "corner",
+        "goal_kick",
+        "free_kick",
+        "out_of_play",
+        "substitution",
+        "possession_change"
+      ]
+    },
+    "team_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "player_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "x": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 105
+    },
+    "y": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 68
+    },
+    "possession_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "under_pressure": {
+      "type": "boolean"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "period_start"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "stoppage_added_s"
+        ],
+        "properties": {
+          "stoppage_added_s": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "period_end"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "stoppage_added_s"
+        ],
+        "properties": {
+          "stoppage_added_s": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "pass"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "receiver_id",
+          "end_x",
+          "end_y",
+          "length_m",
+          "height",
+          "pass_type",
+          "outcome",
+          "ball_speed_kmh",
+          "opponents_bypassed"
+        ],
+        "properties": {
+          "receiver_id": {
+            "type": "string"
+          },
+          "end_x": {
+            "type": "number"
+          },
+          "end_y": {
+            "type": "number"
+          },
+          "length_m": {
+            "type": "number"
+          },
+          "height": {
+            "enum": [
+              "ground",
+              "low",
+              "high"
+            ]
+          },
+          "pass_type": {
+            "enum": [
+              "open_play",
+              "cross",
+              "through_ball",
+              "long_ball",
+              "switch",
+              "cutback"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "complete",
+              "incomplete",
+              "out",
+              "offside"
+            ]
+          },
+          "ball_speed_kmh": {
+            "type": "number"
+          },
+          "opponents_bypassed": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "carry"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "end_x",
+          "end_y",
+          "duration_s"
+        ],
+        "properties": {
+          "end_x": {
+            "type": "number"
+          },
+          "end_y": {
+            "type": "number"
+          },
+          "duration_s": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "shot"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "shot_type",
+          "body_part",
+          "outcome",
+          "ball_speed_kmh",
+          "goal_y",
+          "goal_z"
+        ],
+        "properties": {
+          "shot_type": {
+            "enum": [
+              "open_play",
+              "header",
+              "free_kick",
+              "penalty"
+            ]
+          },
+          "body_part": {
+            "enum": [
+              "left_foot",
+              "right_foot",
+              "head"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "goal",
+              "saved",
+              "off_target",
+              "blocked",
+              "post"
+            ]
+          },
+          "ball_speed_kmh": {
+            "type": "number"
+          },
+          "goal_y": {
+            "type": "number"
+          },
+          "goal_z": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "goal"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "scorer_id",
+          "assist_id",
+          "shot_event_id",
+          "own_goal"
+        ],
+        "properties": {
+          "scorer_id": {
+            "type": "string"
+          },
+          "assist_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shot_event_id": {
+            "type": "string"
+          },
+          "own_goal": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "save"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "keeper_id",
+          "shot_event_id"
+        ],
+        "properties": {
+          "keeper_id": {
+            "type": "string"
+          },
+          "shot_event_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "tackle"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "opponent_id",
+          "outcome"
+        ],
+        "properties": {
+          "opponent_id": {
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "won",
+              "lost"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "pressure"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "target_id",
+          "duration_s",
+          "regained_within_5s"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "duration_s": {
+            "type": "number"
+          },
+          "regained_within_5s": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "duel"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "duel_type",
+          "opponent_id",
+          "outcome"
+        ],
+        "properties": {
+          "duel_type": {
+            "enum": [
+              "ground",
+              "aerial"
+            ]
+          },
+          "opponent_id": {
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "won",
+              "lost"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "foul"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "fouled_id",
+          "severity",
+          "advantage"
+        ],
+        "properties": {
+          "fouled_id": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "advantage": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "advantage"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "foul_event_id"
+        ],
+        "properties": {
+          "foul_event_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "card"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "card",
+          "foul_event_id"
+        ],
+        "properties": {
+          "card": {
+            "enum": [
+              "yellow",
+              "second_yellow",
+              "red"
+            ]
+          },
+          "foul_event_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "throw_in"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "side"
+        ],
+        "properties": {
+          "side": {
+            "enum": [
+              "left",
+              "right"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "corner"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "side"
+        ],
+        "properties": {
+          "side": {
+            "enum": [
+              "left",
+              "right"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "out_of_play"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "last_touch_team_id"
+        ],
+        "properties": {
+          "last_touch_team_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "substitution"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "player_off_id",
+          "player_on_id"
+        ],
+        "properties": {
+          "player_off_id": {
+            "type": "string"
+          },
+          "player_on_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "possession_change"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "from_team_id",
+          "to_team_id",
+          "cause"
+        ],
+        "properties": {
+          "from_team_id": {
+            "type": "string"
+          },
+          "to_team_id": {
+            "type": "string"
+          },
+          "cause": {
+            "enum": [
+              "tackle",
+              "interception",
+              "out_of_play",
+              "foul",
+              "shot",
+              "keeper"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

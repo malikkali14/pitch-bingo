@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "ruff", "mypy", "httpx"]
+dev = ["pytest", "pytest-asyncio", "ruff", "mypy", "httpx", "jsonschema", "matplotlib"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

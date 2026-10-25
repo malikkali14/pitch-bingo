@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchbingo.example/schemas/match.schema.json",
+  "title": "Pitch Bingo match metadata",
+  "description": "match.json (spec 6.2).",
+  "type": "object",
+  "required": [
+    "match_id",
+    "seed",
+    "competition",
+    "season",
+    "matchday",
+    "kickoff_utc",
+    "venue",
+    "conditions",
+    "referee",
+    "home_team_id",
+    "away_team_id",
+    "teams"
+  ],
+  "properties": {
+    "match_id": {
+      "type": "string"
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "competition": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "matchday": {
+      "type": "integer"
+    },
+    "kickoff_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "venue": {
+      "type": "object",
+      "required": [
+        "name",
+        "city",
+        "capacity"
+      ]
+    },
+    "conditions": {
+      "type": "object",
+      "required": [
+        "weather",
+        "temperature_c",
+        "wind_kmh"
+      ]
+    },
+    "referee": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "strictness"
+      ],
+      "properties": {
+        "strictness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "home_team_id": {
+      "type": "string"
+    },
+    "away_team_id": {
+      "type": "string"
+    },
+    "teams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "short_name",
+          "primary_color",
+          "secondary_color",
+          "formation",
+          "coach",
+          "style",
+          "players",
+          "lineup",
+          "bench",
+          "spots"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "short_name": {
+            "type": "string"
+          },
+          "primary_color": {
+            "type": "string"
+          },
+          "secondary_color": {
+            "type": "string"
+          },
+          "formation": {
+            "type": "string"
+          },
+          "coach": {
+            "type": "string"
+          },
+          "style": {
+            "type": "object",
+            "required": [
+              "possession",
+              "pressing",
+              "tempo",
+              "directness"
+            ],
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "full_name",
+                "surname",
+                "shirt_number",
+                "position",
+                "preferred_foot",
+                "age",
+                "attributes",
+                "top_speed_kmh",
+                "season"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "full_name": {
+                  "type": "string"
+                },
+                "surname": {
+                  "type": "string"
+                },
+                "shirt_number": {
+                  "type": "integer"
+                },
+                "position": {
+                  "enum": [
+                    "GK",
+                    "RB",
+                    "CB",
+                    "LB",
+                    "DM",
+                    "CM",
+                    "AM",
+                    "RW",
+                    "LW",
+                    "ST"
+                  ]
+                },
+                "preferred_foot": {
+                  "enum": [
+                    "left",
+                    "right"
+                  ]
+                },
+                "age": {
+                  "type": "integer"
+                },
+                "attributes": {
+                  "type": "object",
+                  "required": [
+                    "pace",
+                    "passing",
+                    "shooting",
+                    "defending",
+                    "discipline"
+                  ],
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "top_speed_kmh": {
+                  "type": "number"
+                },
+                "season": {
+                  "type": "object",
+                  "required": [
+                    "appearances",
+                    "goals",
+                    "assists",
+                    "yellow_cards"
+                  ]
+                }
+              }
+            },
+            "minItems": 20,
+            "maxItems": 20
+          },
+          "lineup": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 11,
+            "maxItems": 11
+          },
+          "bench": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 9,
+            "maxItems": 9
+          },
+          "spots": {
+            "type": "object",
+            "description": "Formation spot per starter in the club's attacking frame (u from own goal, v across).",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      },
+      "minItems": 2,
+      "maxItems": 2
+    }
+  }
+}

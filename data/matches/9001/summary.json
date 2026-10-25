@@ -1,0 +1,71 @@
+{
+  "score": {
+    "NBA": 1,
+    "KVL": 1
+  },
+  "passes": 984,
+  "pass_completion": 0.8252,
+  "shots": 27,
+  "shots_on_target_pct": 0.3333,
+  "goals": 2,
+  "xg_total": 3.237,
+  "xg": {
+    "NBA": 1.479,
+    "KVL": 1.758
+  },
+  "fouls": 27,
+  "yellow_cards": 3,
+  "red_cards": 0,
+  "corners": 5,
+  "offsides": 1,
+  "throw_ins": 47,
+  "substitutions": 8,
+  "tackles": 35,
+  "interceptions": 17,
+  "possession": {
+    "NBA": 0.4927,
+    "KVL": 0.5073
+  },
+  "ball_in_play_min": 59.7,
+  "duration_s": 5866.55,
+  "tracking_model": "fallback",
+  "distance_per_outfield_km": 9.27,
+  "top_speed_kmh": 35.2,
+  "planted": [
+    {
+      "segment": 0,
+      "scenario": "advantage_then_shot",
+      "t": 551.69,
+      "clock": "09:11",
+      "first_seq": 153
+    },
+    {
+      "segment": 1,
+      "scenario": "offside_through_ball",
+      "t": 1700.01,
+      "clock": "28:20",
+      "first_seq": 559
+    },
+    {
+      "segment": 2,
+      "scenario": "long_range_tip_over",
+      "t": 3091.18,
+      "clock": "49:14",
+      "first_seq": 1056
+    },
+    {
+      "segment": 3,
+      "scenario": "thirteen_pass_block",
+      "t": 4377.84,
+      "clock": "70:41",
+      "first_seq": 1465
+    },
+    {
+      "segment": 4,
+      "scenario": "switch_then_wide",
+      "t": 5115.65,
+      "clock": "82:59",
+      "first_seq": 1732
+    }
+  ]
+}
