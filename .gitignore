@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+.env
+azure-names.sh
+node_modules/
+frontend/dist/
+backend/app/static/
+.DS_Store
