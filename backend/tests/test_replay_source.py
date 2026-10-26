@@ -1,12 +1,14 @@
 import asyncio
 import math
 import time
+from pathlib import Path
 
 import pytest
 from factories import load_events, load_meta
 
 from app.engine.clock import ReplayClock
 from app.engine.source import EventSource, Frame, ReplaySource, Rewind, Tick, available_seeds
+from app.generator import generate, write_match
 
 
 class FakeTime:
@@ -78,7 +80,10 @@ def test_substitution_hands_the_slot_to_the_player_coming_on(everything: list[ob
     assert sub["player_on_id"] in ids_after and sub["player_off_id"] not in ids_after
 
 
-def test_a_sent_off_player_leaves_the_frames(everything: list[object]) -> None:
+def test_a_sent_off_player_leaves_the_frames(tmp_path: Path) -> None:
+    # Seed 7 has a sending-off; none of the shipped matches does.
+    write_match(generate(7), tmp_path)
+    everything = list(ReplaySource(7, ReplayClock(), matches_dir=tmp_path).items_until(math.inf))
     red = next(i for i in everything if isinstance(i, dict) and i["type"] == "card"
                and i["card"] in ("red", "second_yellow"))
     later = next(i for i in everything if isinstance(i, Frame) and i.t > red["t"] + 1)

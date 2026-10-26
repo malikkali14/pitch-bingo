@@ -162,13 +162,22 @@ class Sim:
         return [p for p in self.on_pitch[team] if self.pos(p) != "GK"]
 
     def pick(self, team: str, near: tuple[float, float], exclude: str | None = None) -> str:
-        """A player of `team` weighted toward those whose spot is near (u, v) in their frame."""
+        """A player of `team` weighted toward those likely to be near (u, v) in their frame.
+
+        Likely positions are formation spots shifted toward the ball the way the movement model
+        shifts them (spec 6.6 step 2), so the chosen player can actually get there.
+        """
         options = [p for p in self.outfield(team) if p != exclude]
+        on_ball = team == self.team
+        bu, bv = (self.u, self.v) if on_ball else (LENGTH - self.u, WIDTH - self.v)
+        spread = 1.0 if on_ball else 0.8
         weights = []
         for p in options:
             su, sv = self.spot.get(p, (52.5, 34.0))
-            d = math.hypot(su - near[0], sv - near[1])
-            weights.append(1.0 / (8.0 + d) ** 2)
+            eu = 45 + (su - 45) * spread + 0.5 * (bu - 45)
+            ev = 34 + (sv - 34) * spread + 0.35 * (bv - 34)
+            d = math.hypot(eu - near[0], ev - near[1])
+            weights.append(1.0 / (5.0 + d) ** 3)
         return self.rng.choices(options, weights)[0]
 
     def defender_near(self) -> str:

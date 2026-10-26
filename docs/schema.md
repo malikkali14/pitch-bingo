@@ -76,8 +76,11 @@ Swap a scenario with `generate(seed, plants={segment: "name"})`.
 | `slot_ids` | The 22 starting player ids. A substitution hands the slot to `player_on_id`. |
 | `hz` | 10 |
 
-The current movement model is the simple version (ball follows the events, players drift toward
-shifted formation spots). The full model in spec 6.6 replaces `app/generator/movement.py`.
+The movement model (spec 6.6) runs after the events: the player on the ball moves with it, the
+receiver runs onto each pass, players about to act run to where they act, the nearest opponents
+chase the carrier, and everyone else drifts around a shifted formation spot with their own
+noise, top speed and a 3.5 m/s² acceleration cap. Every event's `x`, `y` is then rewritten to
+its player's tracked position, so events and tracking agree within 0.5 m.
 
 ## Validation
 

@@ -3,34 +3,34 @@
     "NBA": 1,
     "KVL": 1
   },
-  "passes": 960,
-  "pass_completion": 0.8198,
+  "passes": 959,
+  "pass_completion": 0.8217,
   "shots": 33,
   "shots_on_target_pct": 0.3636,
   "goals": 2,
-  "xg_total": 2.967,
+  "xg_total": 2.921,
   "xg": {
-    "NBA": 1.971,
-    "KVL": 0.995
+    "NBA": 1.937,
+    "KVL": 0.984
   },
-  "fouls": 22,
-  "yellow_cards": 4,
+  "fouls": 21,
+  "yellow_cards": 3,
   "red_cards": 0,
   "corners": 5,
   "offsides": 1,
   "throw_ins": 44,
   "substitutions": 10,
-  "tackles": 33,
-  "interceptions": 28,
+  "tackles": 34,
+  "interceptions": 27,
   "possession": {
-    "NBA": 0.5354,
-    "KVL": 0.4646
+    "NBA": 0.5401,
+    "KVL": 0.4599
   },
-  "ball_in_play_min": 56.29,
-  "duration_s": 5782.86,
-  "tracking_model": "fallback",
-  "distance_per_outfield_km": 9.14,
-  "top_speed_kmh": 35.2,
+  "ball_in_play_min": 56.49,
+  "duration_s": 5767.65,
+  "tracking_model": "full",
+  "distance_per_outfield_km": 10.43,
+  "top_speed_kmh": 35.0,
   "planted": [
     {
       "segment": 0,
