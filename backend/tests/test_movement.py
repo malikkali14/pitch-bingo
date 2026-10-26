@@ -59,9 +59,8 @@ def test_the_ball_is_at_the_players_feet_for_on_ball_actions(match: dict) -> Non
         f = min(round(e["t"] * 10), len(pos) - 1)
         total += 1
         near += math.dist(pos[f, slot], pos[f, 22]) <= 1.0
-    # The rest are receivers the match simulation names 40+ m from where the ball lands, which
-    # no run can reach in time. Fixing that means changing receiver choice in sim.py.
-    assert near / total >= 0.85
+    # The rest are mostly receivers a few metres short when a quick pass reaches them.
+    assert near / total >= 0.9
 
 
 def test_the_ball_rarely_sits_still_while_in_play(match: dict) -> None:
