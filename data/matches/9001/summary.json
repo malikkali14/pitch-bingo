@@ -8,10 +8,10 @@
   "shots": 27,
   "shots_on_target_pct": 0.3333,
   "goals": 2,
-  "xg_total": 3.237,
+  "xg_total": 3.177,
   "xg": {
-    "NBA": 1.479,
-    "KVL": 1.758
+    "NBA": 1.474,
+    "KVL": 1.703
   },
   "fouls": 27,
   "yellow_cards": 3,
@@ -28,9 +28,9 @@
   },
   "ball_in_play_min": 59.7,
   "duration_s": 5866.55,
-  "tracking_model": "fallback",
-  "distance_per_outfield_km": 9.27,
-  "top_speed_kmh": 35.2,
+  "tracking_model": "full",
+  "distance_per_outfield_km": 11.18,
+  "top_speed_kmh": 35.0,
   "planted": [
     {
       "segment": 0,
