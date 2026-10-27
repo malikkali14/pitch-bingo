@@ -18,6 +18,7 @@ from app.game.masks import Masks
 from app.game.resolve import Context, deadline_t, first_answer, matches, resolve_deadline
 from app.game.resolve import evidence as deadline_evidence
 from app.game.scorekeeper import Out, Scorekeeper, WindowClock, error
+from app.game.strategist import Accuracy, Advice, rank_blanks, signature, suggest
 from app.models import wall_ms as server_wall_ms
 from app.stats.core import RunningStats
 
@@ -54,6 +55,10 @@ class Game:
         self.live = LiveProducer(meta["home_team_id"], meta["away_team_id"], planted)
         self.live_used: Counter[str] = Counter()
         self.masks = Masks()
+        self.accuracy = Accuracy()
+        self.strategy_due = False
+        self.advice: dict[str, Advice] = {}
+        self.keeper.on_result.append(self._on_result)
         for sq in self._kickoff_masked():
             self.masks.on(sq.id, sq.masks)
 
@@ -79,7 +84,8 @@ class Game:
 
     def on_tick(self, t: float) -> Out:
         self.t = max(self.t, t)
-        return self._apply(self._deadlines(t, strict=False, live=None) + self.keeper.tick())
+        out = self._deadlines(t, strict=False, live=None) + self.keeper.tick()
+        return self._apply(out + self._strategy())
 
     def answer(self, square_id: str, value: Any) -> Out:
         return self._apply(self.keeper.answer(square_id, value, self.t))
@@ -88,7 +94,18 @@ class Game:
         cells = parse_cell(from_cell), parse_cell(to_cell)
         if cells[0] is None or cells[1] is None:
             return [error("board.move", "cells are {row, col} from 0 to 4")]
-        return self._apply(self.keeper.move(cells[0], cells[1]))
+        out = self.keeper.move(cells[0], cells[1])
+        if out and out[0]["type"] != "error":
+            self.strategy_due = True
+        return self._apply(out)
+
+    def apply_advice(self, advice_id: str) -> Out:
+        advice = self.advice.pop(advice_id, None)
+        if advice is None:
+            return [error("strategy.apply", "no such advice")]
+        if advice.signature != signature(self.board):
+            return [error("strategy.apply", "the board has changed since that advice")]
+        return self._apply(self._make_moves(advice))
 
     def pause(self, on: bool) -> None:
         self.clock.pause(on)
@@ -183,14 +200,49 @@ class Game:
         sq.masks, sq.source_event_ids = spec.masks, spec.source_event_ids
         sq.resolver, sq.state = f"live_{spec.template}", "waiting"
         self.live.segment_of[sq.id] = moment.segment
+        self.strategy_due = True
         out: Out = [{"type": "square.added", "square": sq.view()}]
         out += self.keeper.open(sq, spec.correct, spec.source_event_ids, self.t, skip=not live)
         out[0]["square"] = sq.view()
         return out + self.keeper.board_changed()
 
     def _blank_for_live(self) -> Square:
-        """The empty blank a new live square lands in (spec 4.7)."""
-        return next(s for s in self.board.squares if s.state == "empty_blank")
+        """The empty blank the strategist ranks highest (spec 4.7)."""
+        return rank_blanks(self.board, self.accuracy, len(self.live.needed) + 1)
+
+    # ---- strategist (spec 4.12) ------------------------------------------------------------
+
+    def _on_result(self, sq: Square) -> None:
+        if sq.result and sq.result["status"] in ("correct", "wrong", "too_early", "missed"):
+            self.accuracy.record(sq.kind, sq.result["status"] == "correct")
+        self.strategy_due = True
+
+    def _strategy(self) -> Out:
+        """After results and moves, once no announced window is open."""
+        if not self.strategy_due or self.keeper.announced_open():
+            return []
+        self.strategy_due = False
+        if self.profile.strategist == "manual":
+            return []
+        advice = suggest(self.board, self.accuracy, len(self.live.needed))
+        if advice is None:
+            return []
+        auto = self.profile.strategist == "auto"
+        msg = {"type": "strategy.advice", "advice_id": advice.advice_id, "moves": advice.moves,
+               "before": advice.before, "after": advice.after, "reason": advice.reason,
+               "applied": auto}
+        if auto:
+            return [msg] + self._make_moves(advice)
+        self.advice = {advice.advice_id: advice}       # only the latest advice can be applied
+        return [msg]
+
+    def _make_moves(self, advice: Advice) -> Out:
+        out: Out = []
+        for move in advice.moves:
+            from_cell = (move["from_cell"]["row"], move["from_cell"]["col"])
+            to_cell = (move["to_cell"]["row"], move["to_cell"]["col"])
+            out += self.keeper.move(from_cell, to_cell)
+        return out
 
     # ---- wording -------------------------------------------------------------------------
 
