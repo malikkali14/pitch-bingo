@@ -756,6 +756,8 @@ Each is an Agent Framework workflow: typed executors joined by edges, with agent
 
 The Publisher is a code executor that writes to the session and pushes WebSocket messages (section 9).
 
+As built: each agent step runs its own call, verifier check and one retry with the error list, then a Verifier executor re-checks the final text as the last gate before the Publisher. The window-close workflow has no personalizer step, since the rules tutor and the narrator's context already write for the viewer's mode. A live square is placed and masked at once, and its window opens when the square writer's wording arrives, within its 1.5-second budget, or with the template wording.
+
 ### 8.5 Messages between steps
 
 | Message | Key fields |

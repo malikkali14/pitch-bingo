@@ -11,12 +11,22 @@ import time
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from app.agents import narrator, personalizer, recap, square_writer, strategist_reason, tutor
+from agent_framework import Workflow
+
+from app import telemetry
+from app.agents import (
+    narrator,
+    personalizer,
+    recap,
+    square_writer,
+    strategist_reason,
+    tutor,
+    workflows,
+)
 from app.agents.clients import ChatClients
-from app.agents.messages import Insight
 from app.agents.runner import AgentRunner
 from app.game.card import Profile
-from app.verify.verifier import LIMITS, verify_line
+from app.game.live import Wording
 
 log = logging.getLogger(__name__)
 
@@ -24,11 +34,24 @@ Publish = Callable[[dict[str, Any]], None]
 MAX_IN_FLIGHT = {"narrator": 3}   # past this, a moment keeps its template line
 
 
+def once(fn: Callable[[Any], None], default: Any) -> Callable[..., None]:
+    """fn, called at most once; called with no argument it passes the default."""
+    called = False
+
+    def call(*args: Any) -> None:
+        nonlocal called
+        if not called:
+            called = True
+            fn(args[0] if args else default)
+    return call
+
+
 class Orchestrator:
     def __init__(self, clients: ChatClients | None, meta: dict[str, Any],
                  profile: Callable[[], Profile], publish: Publish,
-                 now: Callable[[], float] = time.monotonic) -> None:
+                 now: Callable[[], float] = time.monotonic, session_id: str = "") -> None:
         self.clients = clients
+        self.session_id = session_id
         self.meta = meta
         self.profile = profile
         self.publish = publish
@@ -60,70 +83,32 @@ class Orchestrator:
                  shot_xg: float | None = None) -> None:
         if not self.online or not narrator.wants_line(significance, triggers):
             return
-        moment = narrator.build_moment(event, significance, stats(), triggers, milestones,
-                                       self.names, shot_xg)
-        self._spawn("narrator", self._narrate(event, moment, held))
-
-    async def _narrate(self, event: dict[str, Any], moment: dict[str, Any], held: bool) -> None:
-        profile = self.profile()
-        mode = profile.mode
-        limit = LIMITS[mode]
         if self.runners["narrator"].breaker.forced:
             return              # the failure switch: template lines only, cached ones too
-        key = (self.meta["match_id"], event["event_id"], personalizer.profile_hash(profile))
-        text = personalizer.cached(key)
-        if text is None:
-            text = await self._insight_line(moment, profile, limit)
-        if text is None:
-            return
-        personalizer.remember(key, text)
-        self.lines.append((moment["significance"], event["clock"], text))
-        # Replaces the template line in place; a held line stays held until revealed.
-        self.publish({"type": "feed.replace", "entry_id": event["event_id"], "text": text,
-                      "ai": True, "clock": event["clock"], "event_type": event["type"],
-                      "held": held})
-
-    async def _insight_line(self, moment: dict[str, Any], profile: Profile, limit: int
-                            ) -> str | None:
-        """Narrator, then personalizer; the insight's plain rendering if the second fails."""
-        mode = profile.mode
-        found: dict[str, Insight] = {}
-
-        def check(insight: Insight) -> tuple[str | None, list[str]]:
-            text = narrator.render(insight, limit)
-            if text is None:
-                return None, [f"the headline must fit in {limit} characters"]
-            found["insight"] = insight
-            return text, verify_line(text, moment, self.meta, mode)
-
-        outcome = await self.runners["narrator"].run(moment, check)
-        if outcome.value is None:
-            return None
-        payload = personalizer.build_input(found["insight"], profile, self.names)
-        personal = await self.runners["personalizer"].run(
-            payload, lambda value: personalizer.check(value, moment, payload, self.meta, mode))
-        return personal.value or outcome.value
+        moment = narrator.build_moment(event, significance, stats(), triggers, milestones,
+                                       self.names, shot_xg)
+        key = (self.meta["match_id"], event["event_id"],
+               personalizer.profile_hash(self.profile()))
+        job = workflows.MomentJob(event, moment, held, key)
+        self._spawn("narrator", self._run(
+            workflows.moment_workflow(self), job, "moment",
+            {"moment_id": event["event_id"], "significance": significance,
+             "agent": "narrator"}))
 
     # ---- live squares (spec 8.4, the moment workflow's second branch) --------------------
 
     def write_square(self, pending: dict[str, Any],
-                     done: Callable[[square_writer.Wording | None], None]) -> None:
+                     done: Callable[[Wording | None], None]) -> None:
         """Word a live square, then call done (with None for the template wording)."""
         if not self.online:
             done(None)
             return
-
-        async def write() -> None:
-            wording = None
-            try:
-                outcome = await self.runners["square_writer"].run(
-                    pending, lambda draft: square_writer.check(draft, pending, self.meta),
-                    prompt=square_writer.prompt(pending))
-                wording = outcome.value
-            finally:
-                done(wording)       # the square always opens, worded or not
-
-        self._spawn("square_writer", write(), on_skip=lambda: done(None))
+        finish = once(done, None)
+        job = workflows.LiveJob(pending, finish)
+        self._spawn("square_writer", self._run(
+            workflows.moment_workflow(self), job, "moment",
+            {"square_id": pending["square_id"], "agent": "square_writer"}, finish),
+            on_skip=finish)
 
     # ---- strategy (spec 8.4, strategy workflow) ------------------------------------------
 
@@ -133,18 +118,12 @@ class Orchestrator:
         if not self.online or not advice.get("moves"):
             done(advice)
             return
-        payload = strategist_reason.build_input(advice, board)
-
-        async def explain() -> None:
-            reason = None
-            try:
-                outcome = await self.runners["strategist"].run(
-                    payload, lambda value: strategist_reason.check(value, payload, self.meta))
-                reason = outcome.value
-            finally:
-                done(advice if reason is None else {**advice, "reason": reason})
-
-        self._spawn("strategist", explain(), on_skip=lambda: done(advice))
+        finish = once(done, advice)
+        job = workflows.StrategyJob(advice, board, finish)
+        self._spawn("strategist", self._run(
+            workflows.strategy_workflow(self), job, "strategy",
+            {"advice_id": advice["advice_id"], "agent": "strategist"}, finish),
+            on_skip=finish)
 
     # ---- window close (spec 8.4, window-close workflow) -----------------------------------
 
@@ -155,16 +134,9 @@ class Orchestrator:
             return
         mode = self.profile().mode
         agent = "rules_tutor" if mode == "normal" else "narrator_context"
-        payload = tutor.build_input(square)
-
-        async def explain() -> None:
-            outcome = await self.runners[agent].run(
-                payload, lambda value: tutor.check(value, payload, self.meta, mode))
-            if outcome.value is not None:
-                self.publish({"type": "square.explanation", "square_id": square["square_id"],
-                              "text": outcome.value, "ai": True})
-
-        self._spawn(agent, explain())
+        job = workflows.WindowJob(square, mode)
+        self._spawn(agent, self._run(workflows.window_workflow(self), job, "window_close",
+                                     {"square_id": square["square_id"], "agent": agent}))
 
     # ---- recaps (spec 8.4, recap workflow) -----------------------------------------------
 
@@ -174,14 +146,30 @@ class Orchestrator:
         self.publish({"type": "recap", **fallback.model_dump()})
         if not self.online:
             return
+        self._spawn("recap", self._run(workflows.recap_workflow(self),
+                                       workflows.RecapJob(summary), "recap",
+                                       {"recap_kind": summary.kind, "agent": "recap"}))
 
-        async def write() -> None:
-            outcome = await self.runners["recap"].run(
-                summary.payload(), lambda content: recap.check(content, summary, self.meta))
-            if outcome.value is not None:
-                self.publish({"type": "recap", **outcome.value.model_dump()})
-
-        self._spawn("recap", write())
+    async def _run(self, workflow: Workflow, job: Any, name: str, attributes: dict[str, Any],
+                   finish: Callable[..., None] | None = None) -> None:
+        """One workflow run inside a producer.route span (spec 12.2), so a single event can be
+        followed from the producer through the Agent Framework spans to the screen."""
+        with telemetry.tracer().start_as_current_span("producer.route") as span:
+            span.set_attribute("session_id", self.session_id)
+            span.set_attribute("workflow", name)
+            for key, value in attributes.items():
+                span.set_attribute(key, value)
+            agent = attributes.get("agent", "")
+            before = self.runners[agent].health.verifier_failures if agent in self.runners else 0
+            try:
+                result = await workflow.run(job)
+                outputs = [o for o in result.get_outputs() if o is not None]
+            finally:
+                if finish is not None:
+                    finish()            # no-op if the workflow already answered
+            after = self.runners[agent].health.verifier_failures if agent in self.runners else 0
+            span.set_attribute("fallback_used", not outputs)
+            span.set_attribute("verifier_errors", after - before)
 
     def narrator_down(self, on: bool) -> None:
         """The dev panel's failure switch (spec 3, 8.8)."""

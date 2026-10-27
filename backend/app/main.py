@@ -10,6 +10,7 @@ from typing import Any, Literal
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
+from app import telemetry
 from app.config import settings
 from app.engine.source import MATCHES_DIR, available_seeds, load_match
 from app.models import CreateSession, SessionCreated
@@ -18,6 +19,7 @@ from app.session import sessions
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    telemetry.setup()
     yield
     sessions.close_all()
 

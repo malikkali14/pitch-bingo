@@ -72,7 +72,8 @@ class MatchSession:
         self.profile = Profile.parse(profile, self.meta)   # ValueError for unknown ids
         self.planted = planted_segments(self.source.folder)
         self.stats = StatsEngine(self.meta)
-        self.agents = Orchestrator(clients, self.meta, lambda: self.profile, self._publish)
+        self.agents = Orchestrator(clients, self.meta, lambda: self.profile, self._publish,
+                                   session_id=self.id)
         self._new_game()
         self.position = 0.0
         self.task: asyncio.Task[None] | None = None
