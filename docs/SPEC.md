@@ -734,8 +734,8 @@ Simulated fans for the leaderboard are code too: each fan has an accuracy and a 
 
 ### 8.2 Models
 
-- Real-time agents (narrator, personalizer, square writer, strategist): gpt-4.1-mini (decided). Measured from the dev machine on Oct 25: 1.6, 1.7 and 2.2 seconds per call, against 3.1 to 7.0 seconds for gpt-5-mini. The 20-second answer windows and live feed need the faster one.
-- Recap and rules tutor: gpt-5-mini, where quality matters more than speed.
+- Real-time agents (narrator, personalizer, square writer, strategist) and the rules tutor: gpt-4.1-mini (decided). Measured from the dev machine on Oct 25: 1.6, 1.7 and 2.2 seconds per call, against 3.1 to 7.0 seconds for gpt-5-mini. The 20-second answer windows and live feed need the faster one.
+- Recap: gpt-5-mini, where quality matters more than speed. The rules tutor moved to gpt-4.1-mini on Oct 27: it rephrases a stored rule summary, so it needs no reasoning, and against the real endpoint it took about 1.1–3 s on gpt-4.1-mini against about 12.5 s on gpt-5-mini. gpt-4.1-nano and gpt-4o-mini have no quota on this subscription, Mistral and Llama models can't be bought on a free subscription, and Phi-4-mini ignores the JSON schema.
 - One Foundry project, one or two model deployments. Section 11 has the commands.
 
 ### 8.3 Shared match state
@@ -1034,7 +1034,7 @@ Microsoft Foundry supplies the models and guardrails, Microsoft Agent Framework 
 ### 10.1 Microsoft Foundry
 
 - One Foundry resource with one project. The project endpoint looks like https://{resource}.services.ai.azure.com/api/projects/{project}.
-- Deployments: gpt-4.1-mini for the real-time agents and gpt-5-mini for recaps and the rules tutor (section 8.2).
+- Deployments: gpt-4.1-mini for the real-time agents and the rules tutor, and gpt-5-mini for recaps (section 8.2).
 - **Guardrails.** New deployments get Microsoft's default guardrail, which uses Azure AI Content Safety classifiers on prompts and outputs. Keep it on and say so in the README. It sits beside the verifier: guardrails catch harmful content, the verifier catches wrong numbers and names.
 - **Tracing.** Connect the project to the same Application Insights resource as the app, and the agent spans appear in Foundry's trace view.
 - The roles were recently renamed. The app's identity needs **Foundry User** (formerly Azure AI User) on the project.
@@ -1234,7 +1234,7 @@ The dashboard UI is then at http://localhost:18888.
 | --- | --- | --- |
 | FOUNDRY\_PROJECT\_ENDPOINT | https://pitchbingo-foundry-xyz.services.ai.azure.com/api/projects/pitchbingo | From 11.2 |
 | FOUNDRY\_MODEL\_FAST | gpt-4.1-mini | Deployment name for real-time agents |
-| FOUNDRY\_MODEL\_QUALITY | gpt-5-mini | Recap and rules tutor |
+| FOUNDRY\_MODEL\_QUALITY | gpt-5-mini | Recap |
 | STORAGE | memory or cosmos |  |
 | COSMOS\_ENDPOINT | https://pitchbingo-cosmos-xyz.documents.azure.com:443/ | When STORAGE is cosmos |
 | COSMOS\_DATABASE | pitchbingo |  |

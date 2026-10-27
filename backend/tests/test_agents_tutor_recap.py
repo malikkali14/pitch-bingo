@@ -1,4 +1,4 @@
-"""Rules tutor and recap (spec 5.1, 8.4, 8.6), both on the quality model."""
+"""Rules tutor (fast model) and recap (quality model) (spec 5.1, 8.2, 8.4, 8.6)."""
 
 import json
 from typing import Any
@@ -41,15 +41,15 @@ def test_tutor_input_carries_the_rule():
     assert len(tutor.RULES) >= 15
 
 
-async def test_normal_mode_explanations_come_from_the_tutor_on_the_quality_model():
+async def test_normal_mode_explanations_come_from_the_tutor_on_the_fast_model():
     line = f"{SURNAME} was beyond the last defender when the ball was played, so offside."
     o, fast, quality, published = orch([json.dumps({"square_id": "bl_1", "text": line})])
     o.explain_square(OFFSIDE)
     await o.drain()
     assert published == [{"type": "square.explanation", "square_id": "bl_1", "text": line,
                           "ai": True}]
-    assert quality.calls and not fast.calls
-    assert "level with" in quality.calls[0].prompt
+    assert fast.calls and not quality.calls
+    assert "level with" in fast.calls[0].prompt
 
 
 async def test_advanced_mode_explanations_add_tactics_on_the_fast_model():

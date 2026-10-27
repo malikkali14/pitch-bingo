@@ -1,6 +1,6 @@
 """Explanations when a window closes (spec 5.1, 8.4 window-close workflow, 8.6).
 
-Normal mode: the rules tutor (quality model) explains the call or rule in one or two lines a
+Normal mode: the rules tutor (fast model, spec 8.2) explains the call or rule in one or two lines a
 new fan understands, from a stored rule summary. Advanced mode: the narrator's voice adds the
 tactical context (fast model). Either way the template explanation has already posted, and
 this replaces it only if it passes the verifier.
@@ -71,7 +71,7 @@ short sentences, say what the moment behind the bingo square in INPUT tells us a
 match: how it came about and what it means. Use only facts and numbers from INPUT. No betting
 language. Return JSON matching the Explanation schema."""
 
-TUTOR = AgentSpec("rules_tutor", "quality", TUTOR_PROMPT, Explanation, budget_s=3.0)
+TUTOR = AgentSpec("rules_tutor", "fast", TUTOR_PROMPT, Explanation, budget_s=3.0)
 CONTEXT = AgentSpec("narrator_context", "fast", CONTEXT_PROMPT, Explanation, budget_s=2.0)
 
 
