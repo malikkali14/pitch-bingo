@@ -258,3 +258,12 @@ button.ghost { background: transparent; color: var(--ink-2); border: 1px solid v
 .final-score { font-size: 1.2rem; font-weight: 700; margin: 0; }
 .moments { padding-left: 1.2rem; margin: 0; }
 .moments .minute { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---- dev panel ------------------------------------------------------------------------ */
+.dev-panel { margin: 0.6rem 1rem 0; border-style: dashed; }
+.dev-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.dev-controls input[type="number"] { width: 4.5em; font: inherit; padding: 0.2rem; }
+.dev-table td, .dev-table th { text-align: right; }
+.dev-table th[scope="row"], .dev-table thead th:first-child { text-align: left; }
+.breaker.open, .breaker.forced { color: var(--bad); font-weight: 700; }
+.breaker.half_open { color: var(--accent); }

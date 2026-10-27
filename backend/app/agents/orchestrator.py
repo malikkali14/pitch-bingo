@@ -72,6 +72,10 @@ class Orchestrator:
                           "text": outcome.value, "ai": True, "clock": event["clock"],
                           "event_type": event["type"], "held": held})
 
+    def narrator_down(self, on: bool) -> None:
+        """The dev panel's failure switch (spec 3, 8.8)."""
+        self.runners["narrator"].breaker.force(on)
+
     # ---- plumbing ------------------------------------------------------------------------
 
     def _spawn(self, agent: str, work: Coroutine[Any, Any, None]) -> None:

@@ -5,6 +5,7 @@ import { mockBoard } from "./card/mock";
 import type { Board, Square } from "./card/types";
 import { AnswerPopover } from "./components/AnswerPopover";
 import { Card } from "./components/Card";
+import { DevPanel } from "./components/DevPanel";
 import { Feed } from "./components/Feed";
 import { FullTime } from "./components/FullTime";
 import { Leaderboard } from "./components/Leaderboard";
@@ -184,5 +185,29 @@ describe("FullTime", () => {
     expect(screen.getByText("Northbridge Athletic 1 – 1 Kestrel Vale")).toBeTruthy();
     expect(screen.getByText(/6 correct, 2 wrong, 1 missed · 1 lines · 1,342 points/)).toBeTruthy();
     expect(screen.getByText("You finished 4 of 21 on the Normal leaderboard.")).toBeTruthy();
+  });
+});
+
+describe("DevPanel", () => {
+  it("pauses, jumps, flips the failure switch and shows agent health", () => {
+    const onPause = vi.fn();
+    const onJump = vi.fn();
+    const onNarratorDown = vi.fn();
+    const agent = { calls: 12, ai: 9, fallbacks: 3, timeouts: 1, errors: 0, verifier_failures: 2,
+      per_minute: 7, latency_ms: 1640, breaker: "forced" as const, trips: 0, skipped: 1 };
+    render(<DevPanel paused={false} narratorDown={false} onPause={onPause} onJump={onJump}
+      onNarratorDown={onNarratorDown} health={{ type: "health", t: 0, wall: 0, online: true,
+        agents: { narrator: agent }, llm_calls_per_minute: 7, events_per_minute: 120 }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    expect(onPause).toHaveBeenCalledWith(true);
+    fireEvent.change(screen.getByLabelText(/Jump to minute/), { target: { value: "62" } });
+    fireEvent.click(screen.getByRole("button", { name: "Go" }));
+    expect(onJump).toHaveBeenCalledWith(62);
+    fireEvent.click(screen.getByLabelText(/Narrator offline/));
+    expect(onNarratorDown).toHaveBeenCalledWith(true);
+    const row = screen.getByRole("row", { name: /narrator/ });
+    expect(row.textContent).toContain("forced open");
+    expect(row.textContent).toContain("1640 ms");
+    expect(screen.getByText("7 LLM calls/min · 120 events/min")).toBeTruthy();
   });
 });

@@ -51,3 +51,30 @@ def test_without_foundry_the_template_stands() -> None:
             play_to(ws, 618)
             messages = until(ws, lambda m: m["type"] == "event" and m["t"] > 640, 10)
     assert not [m for m in messages if m["type"] == "feed.replace"]
+
+
+def test_failure_switch_falls_back_cleanly(fake: FakeChatClient) -> None:
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions", json={"seed": 2610}).json()["session_id"]
+        with client.websocket_connect(f"/ws/sessions/{sid}") as ws:
+            until(ws, lambda m: m["type"] == "leaderboard")
+            ws.send_json({"type": "dev.narrator_down", "on": True})
+            health = until(ws, lambda m: m["type"] == "health" and
+                           m["agents"]["narrator"]["breaker"] == "forced")[-1]
+            assert health["online"]
+            ws.send_json({"type": "replay.speed", "speed": 10})
+            ws.send_json({"type": "dev.jump", "t": 618})
+            messages = until(ws, lambda m: m["type"] == "event" and m["t"] > 640, 10)
+    assert not [m for m in messages if m["type"] == "feed.replace"]
+    assert fake.calls == []
+
+
+def test_jump_to_a_clock_minute() -> None:
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions", json={"seed": 2610}).json()["session_id"]
+        with client.websocket_connect(f"/ws/sessions/{sid}") as ws:
+            until(ws, lambda m: m["type"] == "leaderboard")
+            ws.send_json({"type": "dev.jump", "minute": 60})
+            event = until(ws, lambda m: m["type"] == "event" and m["t"] > 2700, 10)[-1]["event"]
+    # Events within 3 s of the clock still go out after a jump, so 59:5x is fine too.
+    assert event["period"] == 2 and event["clock"][:3] in ("59:", "60:")

@@ -248,6 +248,29 @@ export interface FeedRevealMessage extends Envelope {
   entry_ids: string[];
 }
 
+export interface AgentHealth {
+  calls: number;
+  ai: number;
+  fallbacks: number;
+  timeouts: number;
+  errors: number;
+  verifier_failures: number;
+  per_minute: number;
+  latency_ms: number | null;
+  breaker: "closed" | "open" | "half_open" | "forced";
+  trips: number;
+  skipped: number;
+}
+
+/** Agent status for the dev panel (spec 3, 9.4). */
+export interface HealthMessage extends Envelope {
+  type: "health";
+  online: boolean;
+  agents: Record<string, AgentHealth>;
+  llm_calls_per_minute: number;
+  events_per_minute: number;
+}
+
 export interface ErrorMessage extends Envelope {
   type: "error";
   request: string;
@@ -271,6 +294,7 @@ export type ServerMessage =
   | LeaderboardMessage
   | FeedRevealMessage
   | FeedReplaceMessage
+  | HealthMessage
   | ErrorMessage;
 
 export const SPEEDS = [1, 5, 10] as const;
@@ -283,4 +307,5 @@ export type ClientMessage =
   | { type: "strategy.apply"; advice_id: string }
   | { type: "profile.set"; strategist?: StrategistSetting; handle?: string; language?: string }
   | { type: "dev.pause"; on: boolean }
-  | { type: "dev.jump"; t: number };
+  | { type: "dev.jump"; t?: number; minute?: number }
+  | { type: "dev.narrator_down"; on: boolean };

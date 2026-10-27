@@ -17,6 +17,7 @@ from typing import Any, TypeVar
 from agent_framework import Agent
 from pydantic import BaseModel, ValidationError
 
+from app.agents.breaker import Breaker
 from app.agents.clients import ChatClients, Tier
 
 log = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class AgentSpec:
 @dataclass
 class Outcome[R]:
     value: R | None
-    reason: str                 # ok, offline, timeout, error, invalid, verifier
+    reason: str                 # ok, offline, breaker, timeout, error, verifier
     errors: list[str] = field(default_factory=list)
     attempts: int = 0
     latency_ms: float = 0.0
@@ -59,6 +60,7 @@ class Health:
     verifier_failures: int = 0
     latency_ms: float | None = None
     recent: deque[float] = field(default_factory=lambda: deque(maxlen=200))
+    breaker: Breaker | None = None
 
     def record_call(self, now: float) -> None:
         self.calls += 1
@@ -74,7 +76,9 @@ class Health:
         return {"calls": self.calls, "ai": self.ai, "fallbacks": self.fallbacks,
                 "timeouts": self.timeouts, "errors": self.errors,
                 "verifier_failures": self.verifier_failures, "per_minute": self.per_minute(now),
-                "latency_ms": None if self.latency_ms is None else round(self.latency_ms)}
+                "latency_ms": None if self.latency_ms is None else round(self.latency_ms),
+                "breaker": self.breaker.state if self.breaker else "closed",
+                "trips": self.breaker.trips if self.breaker else 0}
 
 
 def retry_prompt(prompt: str, errors: list[str]) -> str:
@@ -88,7 +92,8 @@ class AgentRunner:
                  now: Callable[[], float] = time.monotonic) -> None:
         self.spec = spec
         self.now = now
-        self.health = Health()
+        self.breaker = Breaker(now)
+        self.health = Health(breaker=self.breaker)
         self.agent = None if clients is None else Agent(
             client=clients.for_tier(spec.tier), name=spec.name, instructions=spec.instructions)
 
@@ -96,6 +101,8 @@ class AgentRunner:
         """`check` turns the model's output into the final value plus verifier errors."""
         if self.agent is None:
             return self._fallback(Outcome(None, "offline"))
+        if not self.breaker.allow():
+            return self._fallback(Outcome(None, "breaker"))
         prompt = "INPUT: " + (payload if isinstance(payload, str) else
                               json.dumps(payload, ensure_ascii=False, default=str))
         started = self.now()
@@ -109,11 +116,11 @@ class AgentRunner:
                     self.spec.budget_s)
             except TimeoutError:
                 self.health.timeouts += 1
-                return self._fallback(Outcome(None, "timeout", attempts=attempt))
+                return self._fail(Outcome(None, "timeout", attempts=attempt))
             except Exception as error:  # the network, auth, quota, a content filter...
                 log.warning("agent %s failed: %s", self.spec.name, error)
                 self.health.errors += 1
-                return self._fallback(Outcome(None, "error", [str(error)], attempt))
+                return self._fail(Outcome(None, "error", [str(error)], attempt))
             output = self._parse(response)
             if output is None:
                 errors = [f"the reply is not valid JSON for {self.spec.output.__name__}"]
@@ -123,10 +130,11 @@ class AgentRunner:
                 latency = (self.now() - started) * 1000
                 self.health.ai += 1
                 self.health.record_latency(latency)
+                self.breaker.record(True)
                 return Outcome(value, "ok", [], attempt, latency)
         self.health.verifier_failures += 1
         log.info("agent %s fell back after verifier errors: %s", self.spec.name, errors)
-        return self._fallback(Outcome(None, "verifier", errors, 2))
+        return self._fail(Outcome(None, "verifier", errors, 2))
 
     def _parse(self, response: Any) -> BaseModel | None:
         try:
@@ -139,6 +147,10 @@ class AgentRunner:
             return self.spec.output.model_validate_json(response.text)
         except (ValidationError, ValueError):
             return None
+
+    def _fail(self, outcome: Outcome[R]) -> Outcome[R]:
+        self.breaker.record(False)
+        return self._fallback(outcome)
 
     def _fallback(self, outcome: Outcome[R]) -> Outcome[R]:
         self.health.fallbacks += 1

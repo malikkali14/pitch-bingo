@@ -26,8 +26,18 @@ class DevPause(BaseModel):
 
 
 class DevJump(BaseModel):
+    """Jump to match second t, or to a display-clock minute (45 and over is the second half)."""
+
     type: Literal["dev.jump"]
-    t: float = Field(ge=0)
+    t: float | None = Field(default=None, ge=0)
+    minute: float | None = Field(default=None, ge=0, le=130)
+
+
+class DevNarratorDown(BaseModel):
+    """The failure switch: force the narrator's circuit breaker open (spec 3, 8.8)."""
+
+    type: Literal["dev.narrator_down"]
+    on: bool
 
 
 class AnswerSubmit(BaseModel):
@@ -60,7 +70,8 @@ class ProfileSet(BaseModel):
     language: str | None = None
 
 
-Client = ReplaySpeed | DevPause | DevJump | AnswerSubmit | BoardMove | StrategyApply | ProfileSet
+Client = (ReplaySpeed | DevPause | DevJump | DevNarratorDown | AnswerSubmit | BoardMove
+          | StrategyApply | ProfileSet)
 ClientMessage = Annotated[Client, Field(discriminator="type")]
 client_message: TypeAdapter[Client] = TypeAdapter(ClientMessage)
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { announcedOpen } from "./card/rules";
 import { canAnswer } from "./components/AnswerPopover";
 import { Card } from "./components/Card";
+import { DevPanel } from "./components/DevPanel";
 import { Feed } from "./components/Feed";
 import { FullTime } from "./components/FullTime";
 import { Leaderboard } from "./components/Leaderboard";
@@ -27,7 +28,8 @@ export default function App() {
 }
 
 function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
-  const { state, frames, setSpeed, answer, move, applyAdvice } = session;
+  const { state, frames, setSpeed, answer, move, applyAdvice, dev } = session;
+  const [devOpen, setDevOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("normal");
   const [selected, setSelected] = useState<string | null>(null);
   const [fullTimeClosed, setFullTimeClosed] = useState(false);
@@ -64,7 +66,12 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
   return (
     <div className="app">
       <TopBar roster={roster} score={state.stats?.score} anchor={state.anchor} fullTime={state.fullTime}
-        frames={frames} speed={state.speed} onSpeed={setSpeed} mode={mode} onMode={setMode} />
+        frames={frames} speed={state.speed} onSpeed={setSpeed} mode={mode} onMode={setMode}
+        devOpen={devOpen} onDev={() => setDevOpen((o) => !o)} />
+      {devOpen && (
+        <DevPanel health={state.health} paused={state.paused} narratorDown={state.narratorDown}
+          onPause={dev.pause} onJump={dev.jump} onNarratorDown={dev.narratorDown} />
+      )}
       {state.status === "error" && <p className="banner" role="alert">{t("app.error")}</p>}
       <p className="visually-hidden" aria-live="assertive">{state.announcement}</p>
       {noticeShown && state.notice && (

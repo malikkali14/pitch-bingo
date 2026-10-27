@@ -8,6 +8,7 @@ import { has, t } from "../i18n";
 import type {
   EventMessage,
   FeedReplaceMessage,
+  HealthMessage,
   LeaderboardRow,
   MatchEvent,
   MatchMeta,
@@ -76,6 +77,9 @@ export interface MatchState {
   notice: Notice | null;
   announcement: string; // read out by screen readers when an announced window opens
   moments: Moment[];
+  health: HealthMessage | null;
+  paused: boolean;
+  narratorDown: boolean;
 }
 
 export const initialState: MatchState = {
@@ -105,6 +109,9 @@ export const initialState: MatchState = {
   notice: null,
   announcement: "",
   moments: [],
+  health: null,
+  paused: false,
+  narratorDown: false,
 };
 
 export type Action =
@@ -112,7 +119,8 @@ export type Action =
   | { kind: "status"; status: Status }
   | { kind: "speed"; speed: Speed }
   | { kind: "answer"; squareId: string; value: string }
-  | { kind: "moved" };
+  | { kind: "moved" }
+  | { kind: "dev"; paused?: boolean; narratorDown?: boolean };
 
 export function matchReducer(state: MatchState, action: Action): MatchState {
   switch (action.kind) {
@@ -124,6 +132,9 @@ export function matchReducer(state: MatchState, action: Action): MatchState {
       return { ...state, pending: { ...state.pending, [action.squareId]: action.value } };
     case "moved":
       return { ...state, advice: null };
+    case "dev":
+      return { ...state, paused: action.paused ?? state.paused,
+        narratorDown: action.narratorDown ?? state.narratorDown };
     case "message":
       return onMessage(state, action.msg, action.now);
   }
@@ -146,6 +157,7 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
         profile: msg.profile,
         speed: msg.speed,
         board: msg.card,
+        paused: msg.paused,
       };
     case "event":
       return onEvent(state, msg, now);
@@ -207,6 +219,8 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
       return msg.applied
         ? { ...state, advice: null, strategistNote: msg.reason }
         : { ...state, advice: msg, strategistNote: null };
+    case "health":
+      return { ...state, health: msg, narratorDown: msg.agents.narrator?.breaker === "forced" };
     case "leaderboard":
       return { ...state, leaderboard: msg.rows, ranked: msg.total };
     case "error": {

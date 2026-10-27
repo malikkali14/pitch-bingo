@@ -12,6 +12,7 @@ import json
 import logging
 import time
 import uuid
+from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,7 @@ from app.models import (
     AnswerSubmit,
     BoardMove,
     DevJump,
+    DevNarratorDown,
     DevPause,
     ProfileSet,
     ReplaySpeed,
@@ -47,6 +49,7 @@ STATS_EVERY_S = 1.0      # stats go out on change, and at least once a second
 CATCH_UP_S = 3.0         # events further behind the clock than this were jumped over
 END_POLL_S = 0.25
 LEADERBOARD_EVERY_S = 1.0
+HEALTH_EVERY_S = 2.0
 
 
 def planted_segments(folder: Path) -> frozenset[int]:
@@ -80,6 +83,8 @@ class MatchSession:
         self._stats_dirty = True
         self._stats_sent_at = 0.0
         self._leaderboard_sent_at = 0.0
+        self._health_sent_at = 0.0
+        self._event_times: deque[float] = deque(maxlen=2000)
 
     def _new_game(self) -> None:
         self.game = Game(self.meta, self.profile, planted=self.planted)
@@ -140,7 +145,11 @@ class MatchSession:
             self.game.pause(msg.on)
             self.fans.pause(msg.on)
         elif isinstance(msg, DevJump):
-            self.clock.jump(min(msg.t, self.source.duration))
+            target = msg.t if msg.t is not None else self._minute_t(msg.minute or 0.0)
+            self.clock.jump(min(target, self.source.duration))
+        elif isinstance(msg, DevNarratorDown):
+            self.agents.narrator_down(msg.on)
+            self._send_health()
 
     # ---- the session task ------------------------------------------------------------
 
@@ -185,6 +194,8 @@ class MatchSession:
                 self.position = item["t"]
                 self._stats_dirty = True
                 live = item["t"] >= self.clock.t() - CATCH_UP_S
+                if live:
+                    self._event_times.append(time.monotonic())
                 out = self.game.on_event(item, result.significance, live)
                 if self.fans.on_event(item, result.significance, live):
                     self._leaderboard_dirty = True
@@ -239,9 +250,32 @@ class MatchSession:
         self._send(self.game.on_tick(t))
         if self.fans.on_tick(t):
             self._leaderboard_dirty = True
+        if settings.dev_panel and time.monotonic() - self._health_sent_at >= HEALTH_EVERY_S:
+            self._send_health()
         if self._leaderboard_dirty and \
                 time.monotonic() - self._leaderboard_sent_at >= LEADERBOARD_EVERY_S:
             self._broadcast(self._leaderboard_message())
+
+    def _minute_t(self, minute: float) -> float:
+        """Match t for a display-clock minute: second-half minutes start at 45."""
+        if minute < 45:
+            return minute * 60
+        second_half = next((e["t"] for e in self.source.data.events
+                            if e["type"] == "period_start" and e["period"] == 2), 2700.0)
+        return second_half + (minute - 45) * 60
+
+    def _send_health(self) -> None:
+        """Agent status for the dev panel (spec 3, 9.4): latency, calls, breaker state."""
+        self._health_sent_at = time.monotonic()
+        agents = self.agents.health()
+        self._broadcast(message(
+            "health", self.position, online=self.agents.online, agents=agents,
+            llm_calls_per_minute=sum(a["per_minute"] for a in agents.values()),
+            events_per_minute=self._events_per_minute()))
+
+    def _events_per_minute(self) -> int:
+        now = time.monotonic()
+        return sum(1 for t in self._event_times if now - t <= 60)
 
     def _wrap(self, msg: dict[str, Any], t: float) -> dict[str, Any]:
         return message(msg["type"], t, **{k: v for k, v in msg.items() if k != "type"})
