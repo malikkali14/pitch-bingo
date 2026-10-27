@@ -51,7 +51,7 @@ attacks x = 105 in the first half and x = 0 in the second; the renderer handles 
 | `advantage` | `foul_event_id` |
 | `card` | `card`, `foul_event_id` |
 | `throw_in`, `corner` | `side` |
-| `out_of_play` | `last_touch_team_id` |
+| `out_of_play` | `last_touch_team_id`, `line` (`touch` or `end`: the line the ball crossed) |
 | `substitution` | `player_off_id`, `player_on_id` |
 | `possession_change` | `from_team_id`, `to_team_id`, `cause` |
 

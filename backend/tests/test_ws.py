@@ -53,8 +53,8 @@ def test_session_ready_comes_first(client: TestClient) -> None:
     assert ready["type"] == "session.ready"
     assert ready["session_id"] == sid
     assert ready["match"]["match_id"] == "syn-2610"
-    assert ready["profile"] == {"mode": "normal"}
-    assert ready["card"] is None
+    assert ready["profile"]["mode"] == "normal" and ready["profile"]["club"] == "neutral"
+    assert len(ready["card"]["squares"]) == 25
     assert ready["speed"] == 1
     assert {"t", "wall"} <= ready.keys()
 

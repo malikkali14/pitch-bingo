@@ -23,9 +23,11 @@ interface Props {
   cards: Record<string, "yellow" | "red">;
   ball: BallState;
   reducedMotion: boolean;
+  /** Set while a "who" square is open: tapping a dot answers it (spec 3). */
+  onPick?: (playerId: string) => void;
 }
 
-export function Pitch({ roster, frames, cues, cards, ball, reducedMotion }: Props) {
+export function Pitch({ roster, frames, cues, cards, ball, reducedMotion, onPick }: Props) {
   const [view, setView] = useState<{ pos: Positions | null; now: number }>({ pos: null, now: 0 });
 
   useEffect(() => {
@@ -81,7 +83,8 @@ export function Pitch({ roster, frames, cues, cards, ball, reducedMotion }: Prop
           return (
             <PlayerDot key={id} x={x} y={y} home={player?.home ?? true}
               keeper={player?.position === "GK"} number={player?.shirt_number} card={cards[id]}
-              carrier={id === carrier} />
+              carrier={id === carrier} name={player?.full_name}
+              onPick={onPick ? () => onPick(id) : undefined} />
           );
         })}
       {pos && <circle className="ball" cx={pos.ball[0]} cy={pos.ball[1]} r={0.75} />}
@@ -136,13 +139,20 @@ interface DotProps {
   number?: number;
   card?: "yellow" | "red";
   carrier?: boolean;
+  name?: string;
+  onPick?: () => void;
 }
 
-function PlayerDot({ x, y, home, keeper, number, card, carrier }: DotProps) {
+function PlayerDot({ x, y, home, keeper, number, card, carrier, name, onPick }: DotProps) {
   const r = 1.4;
-  const cls = `dot ${home ? "home" : "away"}${keeper ? " keeper" : ""}${carrier ? " carrier" : ""}`;
+  const cls = `dot ${home ? "home" : "away"}${keeper ? " keeper" : ""}${carrier ? " carrier" : ""}` +
+    (onPick ? " pickable" : "");
+  const pick = onPick
+    ? { role: "button", tabIndex: 0, "aria-label": name, onClick: onPick,
+        onKeyDown: (e: { key: string }) => (e.key === "Enter" || e.key === " ") && onPick() }
+    : {};
   return (
-    <g className={cls} transform={`translate(${x} ${y})`}>
+    <g className={cls} transform={`translate(${x} ${y})`} {...pick}>
       {carrier && <circle className="carrier-ring" r={r + 0.9} />}
       {home ? (
         <circle className="body" r={r} />

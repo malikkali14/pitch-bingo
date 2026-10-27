@@ -214,8 +214,8 @@ Every square is answered in a 20-second window, scored by speed, and checked by 
 | kind | deadline, first or live |
 | text | Question per language, 60 characters at most |
 | answer\_type | player, team, number, choice or yesno |
-| options | Choices for choice and team types; in normal mode, numbers become ranges such as "0–1, 2–3, 4+" |
-| deadline\_s | Deadline squares: match second the count freezes at, for example 4200 for 70:00 |
+| options | Choices for choice and team types; in normal mode, numbers become three ranges such as "0–1, 2–3, 4+", set per square from the calibrated count at its deadline so each range is about equally likely |
+| deadline\_s | Deadline squares: the display-clock reading the count freezes at, for example 4200 for 70:00. The server converts it to match t using the second half's start, since t includes first-half stoppage time |
 | trigger | First-to-happen squares: an event filter, for example type = card and card = yellow |
 | resolver | Name of the code function that computes the correct answer from the event log |
 | masks | Mask tags hidden while the window is open, for example cards |
@@ -280,7 +280,7 @@ Answers inside 3 seconds earn the full base, and the floor is 30% at 20 seconds.
 - **Allowed targets:** a waiting static square, or another empty blank or wildcard.
 - **Blocked targets:** resolved statics (correct, wrong, missed, void), wrong or missed live squares, any open square, any square in a scored line.
 - A waiting static displaced by a swap keeps its question and deadline; only its cell changes. The viewer can never pick up a static directly, and a resolved static never moves.
-- No moves at all while any window is open.
+- No moves at all while any announced window (deadline or live) is open. Silent first-to-happen windows never block moves: a first-to-happen square in its silent window still counts as a waiting static for swaps, and its window keeps running. Otherwise a rejected move would reveal the event.
 - Moves are unlimited otherwise.
 - **A scored line freezes.** All five of its squares become locked, wildcards included, so one wildcard can't hop around completing several lines. A locked wildcard still counts for any other line it sits on.
 - **Mistakes can't be moved out.** A wrong square stays put, so a line that holds one can never be completed.
@@ -332,12 +332,15 @@ The card builder picks statics from these templates. Normal mode uses the team o
 | Who is booked first? | first | team | player | cards |
 | Who is subbed off first? | first | team | player | subs |
 | Who scores first? | first | team | player | goals |
+| Who wins the first free kick? | first | team | team | fouls |
+| Who takes the first throw-in? | first | team | player | none |
 
 ### 4.11 Live squares
 
 - Exactly 5 per match, one in each segment: 5–20', 20–38', 38–60', 60–75', 75–88'.
 - The producer opens a live square when a moment's unusualness score passes the threshold (section 7). If a segment reaches 85% of its length with none, the next callable event becomes the live square.
 - The generator also plants one unusual moment per segment (section 6), so the demo match always produces five good ones.
+- A segment whose match file lists a planted moment (summary.json) waits for it, so the demo match's five live squares are its planted moments. Other segments take the first event scoring 60 or more that a live template fits by itself: a shot, a pass of 35 m or more, an advantage, an offside, or a move of 10 or more passes. A score that comes only from a pattern trigger doesn't qualify.
 - Every viewer gets the same five moments. The question differs by mode.
 - The correct answer is computed by code from the source events. The square writer only writes the wording and the wrong options, and the verifier checks that exactly one option is correct.
 
@@ -352,6 +355,8 @@ The card builder picks statics from these templates. Normal mode uses the team o
 | How many passes in that move? | advanced | 1–3, 4–7, 8–12, 13+ |
 
 Normal-mode referee questions only use calls the dots can show: fouls, offsides, advantage, restarts. Never handball or simulation.
+
+A moment becomes a live square at a call: a foul without advantage, an advantage, an offside, or the ball going out of play. Normal mode asks what the referee gave, how play restarts, or (for a throw-in) which team gets it. Advanced mode asks about the move just before the call: that shot's xG or speed, that pass's length, otherwise how many passes were in the move. Planted moments use the pairs in 6.7.
 
 ### 4.12 Strategist
 
@@ -499,7 +504,7 @@ Every event has these fields:
 | card | card (yellow, second\_yellow, red), foul\_event\_id |
 | offside | none (player\_id is the offside player) |
 | throw\_in, corner, goal\_kick, free\_kick | side or none |
-| out\_of\_play | last\_touch\_team\_id |
+| out\_of\_play | last\_touch\_team\_id, line (touch or end) |
 | substitution | player\_off\_id, player\_on\_id |
 | possession\_change | from\_team\_id, to\_team\_id, cause (tackle, interception, out\_of\_play, foul, shot, keeper) |
 

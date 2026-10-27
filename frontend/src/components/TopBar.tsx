@@ -1,11 +1,11 @@
 import { clockAt, type ClockAnchor } from "../clock";
 import { useFrameTime } from "../hooks";
 import { t } from "../i18n";
-import { SPEEDS, type Speed } from "../protocol";
+import { SPEEDS, type Mode, type Speed } from "../protocol";
 import type { Roster } from "../roster";
 import type { FrameStore } from "../state/frames";
 
-export type Mode = "normal" | "advanced";
+export type { Mode };
 
 interface Props {
   roster: Roster;

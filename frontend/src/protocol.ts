@@ -1,5 +1,7 @@
-// WebSocket messages (spec 9.4), as backend/app/session.py sends them today.
+// WebSocket messages (spec 9.4), as backend/app/session.py sends them.
 // Every server message carries type, t (match seconds) and wall (server time in ms).
+
+import type { Board, Cell, Square } from "./card/types";
 
 export type TeamId = string;
 export type PlayerId = string;
@@ -44,22 +46,23 @@ export interface MatchEvent {
   [extra: string]: unknown;
 }
 
+// A stat an open square depends on comes as null while it's masked (spec 4.9).
 export interface ClubStats {
-  possession: number;
-  shots: number;
-  shots_on_target: number;
+  possession: number | null;
+  shots: number | null;
+  shots_on_target: number | null;
   passes: number;
   passes_completed: number;
   pass_accuracy: number | null;
-  corners: number;
-  fouls: number;
-  yellow_cards: number;
-  red_cards: number;
-  offsides: number;
+  corners: number | null;
+  fouls: number | null;
+  yellow_cards: number | null;
+  red_cards: number | null;
+  offsides: number | null;
   tackles_won: number;
   interceptions: number;
   duels_won: number;
-  xg: number;
+  xg: number | null;
 }
 
 export interface PlayerStats {
@@ -67,8 +70,8 @@ export interface PlayerStats {
   touches: number;
   passes: number;
   passes_completed: number;
-  shots: number;
-  xg: number;
+  shots: number | null;
+  xg: number | null;
   tackles: number;
   duels_won: number;
   distance_km: number;
@@ -102,12 +105,24 @@ interface Envelope {
   wall: number;
 }
 
+export type Mode = "normal" | "advanced";
+export type StrategistSetting = "auto" | "suggest" | "manual";
+
+export interface Profile {
+  mode: Mode;
+  club: TeamId | "neutral";
+  focus_player_id: PlayerId | null;
+  language: string;
+  strategist: StrategistSetting;
+  handle: string;
+}
+
 export interface SessionReadyMessage extends Envelope {
   type: "session.ready";
   session_id: string;
   match: MatchMeta;
-  profile: Record<string, unknown>;
-  card: unknown;
+  profile: Profile;
+  card: Board;
   speed: Speed;
   paused: boolean;
   duration: number;
@@ -123,6 +138,7 @@ export interface EventMessage extends Envelope {
   type: "event";
   event: MatchEvent;
   significance: number;
+  held: boolean; // its feed line waits until a window closes (feed.reveal)
 }
 
 export interface StatsMessage extends Envelope {
@@ -132,14 +148,126 @@ export interface StatsMessage extends Envelope {
   clubs: Record<TeamId, ClubStats>;
   players: Record<PlayerId, PlayerStats>;
   patterns: Patterns;
+  masked: string[];
 }
 
-export type ServerMessage = SessionReadyMessage | FrameMessage | EventMessage | StatsMessage;
+export interface MaskMessage extends Envelope {
+  type: "mask.on" | "mask.off";
+  square_id: string;
+  tags: string[];
+}
+
+export interface WindowOpenMessage extends Envelope {
+  type: "square.window_open";
+  square_id: string;
+  closes_at: number; // wall-clock ms
+}
+
+export interface SquareAddedMessage extends Envelope {
+  type: "square.added";
+  square: Square;
+}
+
+export type ResultStatus = "correct" | "wrong" | "too_early" | "missed" | "void";
+
+export interface SquareResultMessage extends Envelope {
+  type: "square.result";
+  square_id: string;
+  status: ResultStatus;
+  points: number;
+  correct_answer: string | null;
+}
+
+export interface SquareExplanationMessage extends Envelope {
+  type: "square.explanation";
+  square_id: string;
+  text: string;
+}
+
+export interface BoardUpdateMessage extends Envelope, Board {
+  type: "board.update";
+}
+
+export interface BoardLineMessage extends Envelope {
+  type: "board.line";
+  line: string;
+  points: number;
+  blank_slate: boolean;
+}
+
+export interface FullCardMessage extends Envelope {
+  type: "board.full_card";
+  points: number;
+}
+
+export interface StrategyMove {
+  from_cell: Cell;
+  to_cell: Cell;
+}
+
+export interface StrategyAdviceMessage extends Envelope {
+  type: "strategy.advice";
+  advice_id: string;
+  moves: StrategyMove[];
+  before: number;
+  after: number;
+  reason: string;
+  applied: boolean;
+}
+
+export interface LeaderboardRow {
+  rank: number;
+  handle: string;
+  points: number;
+  correct: number;
+  avg_answer_s: number | null;
+  you: boolean;
+}
+
+export interface LeaderboardMessage extends Envelope {
+  type: "leaderboard";
+  mode: Mode;
+  rows: LeaderboardRow[];
+  total: number; // everyone ranked: you plus the simulated fans
+}
+
+export interface FeedRevealMessage extends Envelope {
+  type: "feed.reveal";
+  entry_ids: string[];
+}
+
+export interface ErrorMessage extends Envelope {
+  type: "error";
+  request: string;
+  reason: string;
+}
+
+export type ServerMessage =
+  | SessionReadyMessage
+  | FrameMessage
+  | EventMessage
+  | StatsMessage
+  | MaskMessage
+  | WindowOpenMessage
+  | SquareAddedMessage
+  | SquareResultMessage
+  | SquareExplanationMessage
+  | BoardUpdateMessage
+  | BoardLineMessage
+  | FullCardMessage
+  | StrategyAdviceMessage
+  | LeaderboardMessage
+  | FeedRevealMessage
+  | ErrorMessage;
 
 export const SPEEDS = [1, 5, 10] as const;
 export type Speed = (typeof SPEEDS)[number];
 
 export type ClientMessage =
   | { type: "replay.speed"; speed: Speed }
+  | { type: "answer.submit"; square_id: string; value: string }
+  | { type: "board.move"; from_cell: Cell; to_cell: Cell }
+  | { type: "strategy.apply"; advice_id: string }
+  | { type: "profile.set"; strategist?: StrategistSetting; handle?: string; language?: string }
   | { type: "dev.pause"; on: boolean }
   | { type: "dev.jump"; t: number };
