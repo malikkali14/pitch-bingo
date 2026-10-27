@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from app.agents import narrator, square_writer
+from app.agents import narrator, square_writer, strategist_reason
 from app.agents.clients import ChatClients
 from app.agents.messages import Insight
 from app.agents.runner import AgentRunner
@@ -37,6 +37,7 @@ class Orchestrator:
         self.runners = {
             "narrator": AgentRunner(narrator.SPEC, clients, now),
             "square_writer": AgentRunner(square_writer.SPEC, clients, now),
+            "strategist": AgentRunner(strategist_reason.SPEC, clients, now),
         }
         self.in_flight: dict[str, int] = {name: 0 for name in self.runners}
         self.skipped: dict[str, int] = {name: 0 for name in self.runners}
@@ -95,6 +96,27 @@ class Orchestrator:
                 done(wording)       # the square always opens, worded or not
 
         self._spawn("square_writer", write(), on_skip=lambda: done(None))
+
+    # ---- strategy (spec 8.4, strategy workflow) ------------------------------------------
+
+    def explain_advice(self, advice: dict[str, Any], board: dict[str, Any],
+                       done: Callable[[dict[str, Any]], None]) -> None:
+        """Send the advice with the agent's reason, or with the template reason."""
+        if not self.online or not advice.get("moves"):
+            done(advice)
+            return
+        payload = strategist_reason.build_input(advice, board)
+
+        async def explain() -> None:
+            reason = None
+            try:
+                outcome = await self.runners["strategist"].run(
+                    payload, lambda value: strategist_reason.check(value, payload, self.meta))
+                reason = outcome.value
+            finally:
+                done(advice if reason is None else {**advice, "reason": reason})
+
+        self._spawn("strategist", explain(), on_skip=lambda: done(advice))
 
     def narrator_down(self, on: bool) -> None:
         """The dev panel's failure switch (spec 3, 8.8)."""

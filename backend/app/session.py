@@ -279,7 +279,9 @@ class MatchSession:
         return sum(1 for t in self._event_times if now - t <= 60)
 
     def _wrap(self, msg: dict[str, Any], t: float) -> dict[str, Any]:
-        return message(msg["type"], t, **{k: v for k, v in msg.items() if k != "type"})
+        # Keys starting "_" are the session's own bookkeeping and never go to the browser.
+        return message(msg["type"], t, **{k: v for k, v in msg.items()
+                                          if k != "type" and not k.startswith("_")})
 
     def _write_square(self, pending: dict[str, Any]) -> None:
         game = self.game        # a reset starts a new game; the old square stays closed
@@ -299,6 +301,12 @@ class MatchSession:
         for msg in out:
             if msg["type"] == "live.pending":
                 self._write_square(msg)
+                continue
+            if msg["type"] == "strategy.advice" and self.agents.online and \
+                    not msg.get("_explained"):
+                self.agents.explain_advice(
+                    msg, self.game.board.view(),
+                    lambda advice: self._send([{**advice, "_explained": True}]))
                 continue
             if msg["type"] in ("square.result", "board.update"):
                 self._leaderboard_dirty = True
