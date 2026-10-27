@@ -55,7 +55,9 @@ def build_moment(event: dict[str, Any], significance: int, stats: dict[str, Any]
                  names: Names, shot_xg: float | None = None) -> dict[str, Any]:
     described: dict[str, Any] = {k: event[k] for k in EVENT_FIELDS if event.get(k) is not None}
     if event.get("team_id"):
-        described["club"] = names.club(event["team_id"])
+        # A foul's club is the one that committed it; say so, or a model reads it as the victim.
+        key = "fouling_club" if event["type"] == "foul" else "club"
+        described[key] = names.club(event["team_id"])
     for key in PERSON_FIELDS:
         if event.get(key):
             described[key.removesuffix("_id")] = names.player(event[key])

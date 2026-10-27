@@ -68,7 +68,8 @@ def template(s: Summary) -> Recap:
     bingo = (f"You have {card.get('points', 0)} points, {card.get('correct', 0)} correct and "
              f"{card.get('lines', 0)} lines." if card else None)
     return Recap(kind=s.kind, content=RecapContent(
-        headline=headline, paragraphs=paragraphs, talking_points=points[:3], bingo_summary=bingo))
+        headline=headline, paragraphs=paragraphs, talking_points=points[:3],
+        club_paragraph=None, player_paragraph=None, bingo_summary=bingo))
 
 
 def check(content: RecapContent, summary: Summary, meta: dict[str, Any]

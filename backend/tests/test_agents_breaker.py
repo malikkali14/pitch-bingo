@@ -18,7 +18,8 @@ from app.game.card import Profile
 
 META = load_meta()
 GOOD = json.dumps({"moment_id": "m", "headline_facts": ["A big moment in this match."],
-                   "why_facts": []})
+                   "why_facts": [],
+                   "tags": [], "evidence_ids": [], "numbers": []})
 
 
 class Clock:

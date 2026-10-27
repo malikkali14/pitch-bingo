@@ -14,7 +14,8 @@ from app.game.card import Profile
 
 META = load_meta()
 INSIGHT = json.dumps({"moment_id": "e000001", "headline_facts": ["A 101 km/h shot is saved."],
-                      "why_facts": ["Northbridge have 4 shots to 1."]})
+                      "why_facts": ["Northbridge have 4 shots to 1."],
+                      "tags": [], "evidence_ids": [], "numbers": []})
 
 
 def line(text: str) -> str:

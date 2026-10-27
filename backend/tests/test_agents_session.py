@@ -14,7 +14,7 @@ from app.main import app
 from app.session import sessions
 
 LINE = json.dumps({"moment_id": "m", "headline_facts": ["A big moment in this match."],
-                   "why_facts": [], "tags": [], "evidence_ids": [], "numbers": {}})
+                   "why_facts": [], "tags": [], "evidence_ids": [], "numbers": []})
 
 
 @pytest.fixture

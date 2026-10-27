@@ -21,7 +21,8 @@ from app.game.card import Profile
 
 META = load_meta()
 INSIGHT = json.dumps({"moment_id": "e000001", "headline_facts": ["A save from close range."],
-                      "why_facts": []})
+                      "why_facts": [],
+                      "tags": [], "evidence_ids": [], "numbers": []})
 
 
 def orch(replies: Any = (INSIGHT,)) -> tuple[Orchestrator, list[dict[str, Any]]]:

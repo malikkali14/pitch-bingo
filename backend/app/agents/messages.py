@@ -1,9 +1,19 @@
 """Messages between workflow steps (spec 8.5). LLM agents must return JSON that validates
-against these; the verifier then checks the content."""
+against these; the verifier then checks the content.
+
+Models an agent returns are sent as a strict structured-output schema, which Azure OpenAI only
+accepts when every field is required and there are no free-form objects: so no defaults here
+(nullable fields are still required), and numbers are a list of key and value pairs.
+"""
 
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+
+class NumberFact(BaseModel):
+    key: str
+    value: float
 
 
 class Insight(BaseModel):
@@ -12,9 +22,9 @@ class Insight(BaseModel):
     moment_id: str
     headline_facts: list[str] = Field(description="What happened, one short sentence each.")
     why_facts: list[str] = Field(description="Why it matters right now, one sentence each.")
-    tags: list[str] = Field(default_factory=list)
-    evidence_ids: list[str] = Field(default_factory=list)
-    numbers: dict[str, float] = Field(default_factory=dict)
+    tags: list[str]
+    evidence_ids: list[str]
+    numbers: list[NumberFact] = Field(description="The key numbers used, as key and value.")
 
 
 class RenderedLine(BaseModel):
@@ -35,9 +45,10 @@ class LiveSquareDraft(BaseModel):
 
 
 class Explanation(BaseModel):
+    """Evidence ids are known by code (the square's result), so the model isn't asked."""
+
     square_id: str
     text: str
-    evidence_ids: list[str] = Field(default_factory=list)
 
 
 class StrategyReason(BaseModel):
@@ -48,9 +59,9 @@ class RecapContent(BaseModel):
     headline: str
     paragraphs: list[str]
     talking_points: list[str]
-    club_paragraph: str | None = None
-    player_paragraph: str | None = None
-    bingo_summary: str | None = None
+    club_paragraph: str | None
+    player_paragraph: str | None
+    bingo_summary: str | None
 
 
 class Recap(BaseModel):

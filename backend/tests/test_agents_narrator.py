@@ -40,7 +40,7 @@ def narrator_calls(fake: FakeChatClient) -> list[Any]:
 def insight(headline: str, why: str = "") -> str:
     return json.dumps({"moment_id": "e000001", "headline_facts": [headline],
                        "why_facts": [why] if why else [], "tags": [], "evidence_ids": [],
-                       "numbers": {}})
+                       "numbers": []})
 
 
 def orchestrator(replies: Any, mode: str = "normal") -> tuple[Orchestrator, list, FakeChatClient]:
@@ -62,6 +62,14 @@ def test_moment_uses_names_and_hides_masked_stats():
     assert moment["pattern_triggers"] == [{"pattern": "chaos", "kind": "chaos_high",
                                            "club": "Northbridge", "value": 63.0}]
     assert "625" not in json.dumps(moment) and "x" not in moment["event"]
+
+
+def test_a_foul_names_the_fouling_club():
+    foul = Log().add("foul", 620.0, team="KVL", player="KVL-04", tags=("fouls",),
+                     fouled_id=STRIKER["id"], severity=0.3, advantage=True)
+    event = narrator.build_moment(foul, 45, STATS, [], [], NAMES)["event"]
+    assert event["fouling_club"] == "Kestrel" and "club" not in event
+    assert event["fouled"] == STRIKER["full_name"]
 
 
 def test_which_events_get_a_line():

@@ -95,7 +95,8 @@ def good_recap(**extra: Any) -> str:
                        "paragraphs": [f"{FULL} scored on 15' for Northbridge.",
                                       "Northbridge had 58% of the ball and 7 shots to 3."],
                        "talking_points": [f"{SURNAME}'s finish", "Northbridge's control",
-                                          "Kestrel's 3 shots"], **extra})
+                                          "Kestrel's 3 shots"], "club_paragraph": None,
+                       "player_paragraph": None, "bingo_summary": None, **extra})
 
 
 async def test_recap_from_the_quality_model():
