@@ -100,7 +100,8 @@ async def test_a_valid_insight_replaces_the_template_line():
                           "event_type": "shot", "held": False}]
     call = narrator_calls(fake)[0]
     assert "Use ONLY the facts and numbers in INPUT" in call.instructions
-    assert call.prompt.startswith("INPUT: {")
+    assert call.prompt.startswith("Length: headline_facts[0] must be under 140 characters")
+    assert "\nINPUT: {" in call.prompt
     assert orch.health()["narrator"]["ai"] == 1
 
 

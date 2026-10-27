@@ -21,6 +21,7 @@ from agent_framework import Executor, Workflow, WorkflowBuilder, WorkflowContext
 
 from app.agents import narrator, personalizer, recap, square_writer, strategist_reason, tutor
 from app.agents.messages import Insight, Recap
+from app.agents.runner import with_limit
 from app.game.live import Wording
 from app.verify.verifier import LIMITS, verify_line, verify_live_square
 
@@ -139,7 +140,10 @@ class Narrator(Step):
             found["insight"] = insight
             return text, verify_line(text, job.moment, self.o.meta, mode)
 
-        outcome = await self.o.runners["narrator"].run(job.moment, check)
+        rule = (f"Length: headline_facts[0] must be under {limit} characters, and "
+                f"headline_facts[0] plus why_facts[0] together should be under {limit} too.")
+        outcome = await self.o.runners["narrator"].run(job.moment, check,
+                                                         prompt=with_limit(job.moment, rule))
         if outcome.value is None:
             await ctx.yield_output(None)      # the template line stands
             return
@@ -200,9 +204,11 @@ class Personalizer(Step):
     async def personalize(self, item: Drafted, ctx: WorkflowContext[Line]) -> None:
         profile = self.o.profile()
         payload = personalizer.build_input(item.insight, profile, self.o.names)
+        limit = LIMITS[profile.mode]
         outcome = await self.o.runners["personalizer"].run(
             payload, lambda value: personalizer.check(value, item.job.moment, payload,
-                                                      self.o.meta, profile.mode))
+                                                      self.o.meta, profile.mode),
+            prompt=with_limit(payload, f"Length: the text must be under {limit} characters."))
         await ctx.send_message(Line(item.job, outcome.value or item.text))
 
 
@@ -276,8 +282,11 @@ class Explainer(Step):
 
     @handler
     async def explain(self, job: WindowJob, ctx: WorkflowContext[Explained, None]) -> None:
+        limit = LIMITS[job.mode]
+        rule = f"Length: the text must be under {limit} characters, one or two short sentences."
         outcome = await self.o.runners[self.agent].run(
-            job.payload, lambda value: tutor.check(value, job.payload, self.o.meta, job.mode))
+            job.payload, lambda value: tutor.check(value, job.payload, self.o.meta, job.mode),
+            prompt=with_limit(job.payload, rule))
         if outcome.value is None:
             await ctx.yield_output(None)      # the template explanation stands
             return
@@ -313,8 +322,10 @@ class Optimizer(Step):
 class Strategist(Step):
     @handler
     async def explain(self, job: StrategyJob, ctx: WorkflowContext[Reasoned, None]) -> None:
+        rule = f"Length: the reason must be under {strategist_reason.LIMIT} characters."
         outcome = await self.o.runners["strategist"].run(
-            job.payload, lambda value: strategist_reason.check(value, job.payload, self.o.meta))
+            job.payload, lambda value: strategist_reason.check(value, job.payload, self.o.meta),
+            prompt=with_limit(job.payload, rule))
         if outcome.value is None:
             job.done(job.advice)              # the template reason
             await ctx.yield_output(None)
@@ -345,8 +356,11 @@ class Recapper(Step):
     @handler
     async def write(self, job: RecapJob, ctx: WorkflowContext[Recapped, None]) -> None:
         summary = job.summary
+        rule = (f"Length: each paragraph under {recap.PARAGRAPH_LIMIT} characters, the headline "
+                f"and each talking point under {LIMITS['advanced']}.")
         outcome = await self.o.runners["recap"].run(
-            summary.payload(), lambda content: recap.check(content, summary, self.o.meta))
+            summary.payload(), lambda content: recap.check(content, summary, self.o.meta),
+            prompt=with_limit(summary.payload(), rule))
         if outcome.value is None:
             await ctx.yield_output(None)      # the template recap stands
             return

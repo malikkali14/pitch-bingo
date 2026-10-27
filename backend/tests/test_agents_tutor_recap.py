@@ -50,6 +50,7 @@ async def test_normal_mode_explanations_come_from_the_tutor_on_the_fast_model():
                           "ai": True}]
     assert fast.calls and not quality.calls
     assert "level with" in fast.calls[0].prompt
+    assert fast.calls[0].prompt.startswith("Length: the text must be under 140 characters")
 
 
 async def test_advanced_mode_explanations_add_tactics_on_the_fast_model():

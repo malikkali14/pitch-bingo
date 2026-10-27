@@ -81,6 +81,12 @@ class Health:
                 "trips": self.breaker.trips if self.breaker else 0}
 
 
+def with_limit(payload: Any, rule: str) -> str:
+    """A prompt that states a length rule before the input. The rule stays outside INPUT, so
+    its number never counts as a fact the verifier accepts."""
+    return f"{rule}\nINPUT: " + json.dumps(payload, ensure_ascii=False, default=str)
+
+
 def retry_prompt(prompt: str, errors: list[str]) -> str:
     listed = "\n".join(f"- {e}" for e in errors)
     return (f"{prompt}\n\nYour last answer was rejected:\n{listed}\n"
