@@ -184,4 +184,6 @@ def _reason(board: Board, start: np.ndarray, moves: list[tuple[int, int]], sim: 
     what = "wildcard" if moved.state == "wildcard" else "blank"
     if good == 5:
         return f"Moved a {what} into {_line_name(best)} to complete it."
+    if good == 0:
+        return f"Moved a {what} into {_line_name(best)}, a line with nothing lost yet."
     return f"Moved a {what} into {_line_name(best)}: {good} of its 5 squares are already correct."
