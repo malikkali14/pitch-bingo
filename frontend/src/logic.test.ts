@@ -5,7 +5,7 @@ import { mockBoard } from "./card/mock";
 import { feedEntry } from "./feed/templates";
 import type { FrameMessage, MatchEvent, StatsMessage } from "./protocol";
 import { carrierAt, initialBall, nextBall } from "./state/ball";
-import { META, ev } from "./test-fixtures";
+import { META, PROFILE, ev } from "./test-fixtures";
 import { buildRoster } from "./roster";
 import { FrameStore, lerpFrames } from "./state/frames";
 import { initialState, matchReducer, type MatchState } from "./state/match";
@@ -13,8 +13,8 @@ import { initialState, matchReducer, type MatchState } from "./state/match";
 function ready(): MatchState {
   return matchReducer(initialState, {
     kind: "message", now: 0,
-    msg: { type: "session.ready", t: 0, wall: 0, session_id: "s1", match: META, profile: {},
-      card: null, speed: 1, paused: false, duration: 5900 },
+    msg: { type: "session.ready", t: 0, wall: 0, session_id: "s1", match: META, profile: PROFILE,
+      card: mockBoard, speed: 1, paused: false, duration: 5900 },
   });
 }
 
@@ -78,7 +78,7 @@ describe("match reducer", () => {
     const foul = ev("foul", { t: 20, clock: "00:20" });
     const corner = ev("corner", { t: 30, clock: "00:30" });
     for (const e of [foul, ev("pass"), corner, corner]) {
-      state = matchReducer(state, { kind: "message", now: 1, msg: { type: "event", t: e.t, wall: 0, event: e, significance: 0 } });
+      state = matchReducer(state, { kind: "message", now: 1, msg: { type: "event", t: e.t, wall: 0, event: e, significance: 0, held: false } });
     }
     expect(state.feed.map((f) => f.entry_id)).toEqual([corner.event_id, foul.event_id]);
     expect(state.cues).toHaveLength(4);
@@ -90,7 +90,7 @@ describe("match reducer", () => {
     for (const e of [ev("card", { card: "yellow", player_id: "KVL-04" }),
       ev("card", { card: "second_yellow", player_id: "KVL-04" }),
       ev("period_end", { period: 2, t: 5900, clock: "90+4:00" })]) {
-      state = matchReducer(state, { kind: "message", now: 1, msg: { type: "event", t: e.t, wall: 0, event: e, significance: 0 } });
+      state = matchReducer(state, { kind: "message", now: 1, msg: { type: "event", t: e.t, wall: 0, event: e, significance: 0, held: false } });
     }
     expect(state.cards).toEqual({ "KVL-04": "red" });
     expect(state.fullTime).toBe(true);
@@ -134,7 +134,7 @@ describe("frames", () => {
 });
 
 describe("mock card", () => {
-  it("follows the card rules it will be swapped for", () => {
+  it("follows the card rules", () => {
     const squares = mockBoard.squares;
     expect(squares).toHaveLength(25);
     expect(new Set(squares.map((s) => `${s.cell.row},${s.cell.col}`)).size).toBe(25);
@@ -176,11 +176,11 @@ describe("ball state", () => {
   });
 
   it.each([
-    // [event, expected note]: home attacks x = 105 in the first half
-    [ev("out_of_play", { x: 40, y: 0, last_touch_team_id: "NBA" }), "Ball out: Kestrel throw-in"],
-    [ev("out_of_play", { x: 105, y: 20, last_touch_team_id: "KVL" }), "Ball out: corner to Northbridge"],
-    [ev("out_of_play", { x: 105, y: 20, last_touch_team_id: "NBA" }), "Ball out: Kestrel goal kick"],
-    [ev("out_of_play", { x: 0, y: 20, period: 2, last_touch_team_id: "KVL" }), "Ball out: corner to Northbridge"],
+    // [event, expected note]: the event's club is the one attacking the end line
+    [ev("out_of_play", { line: "touch", last_touch_team_id: "NBA" }), "Ball out: Kestrel throw-in"],
+    [ev("out_of_play", { line: "end", team_id: "NBA", last_touch_team_id: "KVL" }), "Ball out: corner to Northbridge"],
+    [ev("out_of_play", { line: "end", team_id: "NBA", last_touch_team_id: "NBA" }), "Ball out: Kestrel goal kick"],
+    [ev("out_of_play", { line: "end", team_id: "KVL", last_touch_team_id: "KVL" }), "Ball out: Northbridge goal kick"],
     [ev("foul", { team_id: "KVL", advantage: false }), "Foul: Northbridge free kick"],
     [ev("offside", { team_id: "NBA" }), "Offside: Kestrel free kick"],
     [ev("goal", { team_id: "NBA" }), "Goal! Kestrel to kick off"],
@@ -191,7 +191,7 @@ describe("ball state", () => {
 
   it("clears the note when play restarts, but not for advantage", () => {
     expect(run(ev("foul", { team_id: "KVL", advantage: true })).stoppage).toBeNull();
-    expect(run(ev("out_of_play", { x: 40, y: 0, last_touch_team_id: "NBA" }),
+    expect(run(ev("out_of_play", { line: "touch", last_touch_team_id: "NBA" }),
       ev("throw_in", { team_id: "KVL", player_id: "KVL-04" })).stoppage).toBeNull();
   });
 });

@@ -13,6 +13,8 @@ export interface FeedEntry {
   text: string;
   tag: string;
   ai: boolean;
+  tags: string[]; // the event's mask tags, so an open square can hide the line (spec 4.9)
+  revealed?: boolean; // posted late, after the window it was held for
 }
 
 const ICONS: Record<string, string> = {
@@ -65,5 +67,8 @@ export function feedEntry(e: MatchEvent, roster: Roster): FeedEntry | null {
   });
   const kind = e.type.startsWith("period") ? "period" : e.type;
   const icon = e.type === "card" && e.card !== "yellow" ? "🟥" : ICONS[kind];
-  return { entry_id: e.event_id, minute: minuteLabel(e.clock), icon, text, tag: t(`tag.${kind}`), ai: false };
+  return {
+    entry_id: e.event_id, minute: minuteLabel(e.clock), icon, text, tag: t(`tag.${kind}`), ai: false,
+    tags: [...new Set(e.tags)],
+  };
 }

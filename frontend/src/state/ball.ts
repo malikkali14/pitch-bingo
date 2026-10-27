@@ -3,7 +3,7 @@
 
 import { t } from "../i18n";
 import type { MatchEvent } from "../protocol";
-import { attacksRight, type Roster } from "../roster";
+import type { Roster } from "../roster";
 
 export interface BallState {
   owner: string | null;
@@ -51,14 +51,13 @@ function stoppageNote(e: MatchEvent, roster: Roster): string | null {
   const other = (id: string | null) => (id === roster.home.id ? roster.away : roster.home);
   switch (e.type) {
     case "out_of_play": {
+      // The event says which line the ball crossed; its club is the one attacking that end.
       const last = String(e.last_touch_team_id);
-      if (e.x > 1 && e.x < 104) return t("stop.throw_in", { team: other(last).short_name });
-      // Over an end line: the club defending that end gets a goal kick, unless it touched last.
-      const defending = attacksRight(roster.home.id, e.period, roster.home.id) === (e.x <= 1)
-        ? roster.home : roster.away;
-      return last === defending.id
-        ? t("stop.corner", { team: other(defending.id).short_name })
-        : t("stop.goal_kick", { team: defending.short_name });
+      if (e.line !== "end") return t("stop.throw_in", { team: other(last).short_name });
+      const attacking = roster.team(e.team_id) ?? roster.home;
+      return last === attacking.id
+        ? t("stop.goal_kick", { team: other(attacking.id).short_name })
+        : t("stop.corner", { team: attacking.short_name });
     }
     case "foul":
       return e.advantage ? null : t("stop.foul", { team: other(e.team_id).short_name });

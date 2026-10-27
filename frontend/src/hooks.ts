@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FrameStore } from "./state/frames";
 
 const REDUCED = "(prefers-reduced-motion: reduce)";
@@ -33,4 +33,26 @@ export function useNow(ms = 250): number {
     return () => clearInterval(id);
   }, [ms]);
   return now;
+}
+
+/** A short chime when an announced window opens (spec 3). Silent where audio isn't allowed. */
+export function useChime(trigger: string): void {
+  const context = useRef<AudioContext | null>(null);
+  useEffect(() => {
+    if (!trigger || typeof window === "undefined" || !("AudioContext" in window)) return;
+    try {
+      context.current ??= new AudioContext();
+      const ctx = context.current;
+      const tone = ctx.createOscillator();
+      const gain = ctx.createGain();
+      tone.frequency.value = 880;
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+      tone.connect(gain).connect(ctx.destination);
+      tone.start();
+      tone.stop(ctx.currentTime + 0.25);
+    } catch {
+      // No audio: the pulse and the screen-reader announcement still mark the window.
+    }
+  }, [trigger]);
 }

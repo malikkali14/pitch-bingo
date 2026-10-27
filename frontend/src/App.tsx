@@ -1,22 +1,52 @@
-import { useState } from "react";
-import { mockBoard } from "./card/mock";
+import { useEffect, useState } from "react";
+import { announcedOpen } from "./card/rules";
+import { canAnswer } from "./components/AnswerPopover";
 import { Card } from "./components/Card";
 import { Feed } from "./components/Feed";
+import { FullTime } from "./components/FullTime";
+import { Leaderboard } from "./components/Leaderboard";
 import { Metrics } from "./components/Metrics";
 import { Pitch } from "./components/Pitch";
+import { Setup } from "./components/Setup";
+import { Strategist } from "./components/Strategist";
 import { TopBar, type Mode } from "./components/TopBar";
-import { usePrefersReducedMotion } from "./hooks";
+import { useChime, usePrefersReducedMotion } from "./hooks";
 import { t } from "./i18n";
-import { useMatchSession } from "./state/session";
+import { maskedTags } from "./state/match";
+import { useMatchSession, type Kickoff } from "./state/session";
 
-// One screen (spec 3): pitch and feed on the left, metrics and card on the right.
+const NOTICE_MS = 4000;
+
+// Setup first, then one screen (spec 3): pitch and feed on the left; metrics, card,
+// strategist and leaderboard on the right; the full-time screen over it at the end.
 export default function App() {
-  const { state, frames, setSpeed } = useMatchSession();
-  const [mode, setMode] = useState<Mode>("normal");
-  const reducedMotion = usePrefersReducedMotion();
-  const { roster } = state;
+  const [kickoff, setKickoff] = useState<Kickoff | null>(null);
+  const session = useMatchSession(kickoff);
+  if (!kickoff) return <Setup onKickoff={setKickoff} />;
+  return <Match session={session} />;
+}
 
-  if (!roster) {
+function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
+  const { state, frames, setSpeed, answer, move, applyAdvice } = session;
+  const [mode, setMode] = useState<Mode>("normal");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [fullTimeClosed, setFullTimeClosed] = useState(false);
+  const [noticeShown, setNoticeShown] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+  const { roster, board, profile } = state;
+  useChime(state.announcement);
+
+  useEffect(() => {
+    if (profile) setMode(profile.mode);
+  }, [profile]);
+  useEffect(() => {
+    if (!state.notice) return;
+    setNoticeShown(true);
+    const id = setTimeout(() => setNoticeShown(false), NOTICE_MS);
+    return () => clearTimeout(id);
+  }, [state.notice]);
+
+  if (!roster || !board || !profile) {
     return (
       <main className="status-screen">
         <h1>{t("app.title")}</h1>
@@ -25,22 +55,42 @@ export default function App() {
     );
   }
 
+  const masked = maskedTags(state);
+  const language = profile.language;
+  const square = board.squares.find((s) => s.id === selected);
+  const picking = square?.answer_type === "player" && canAnswer(square) && !state.pending[square.id];
+  const showFullTime = state.fullTime && !fullTimeClosed && !announcedOpen(board);
+
   return (
     <div className="app">
       <TopBar roster={roster} score={state.stats?.score} anchor={state.anchor} fullTime={state.fullTime}
         frames={frames} speed={state.speed} onSpeed={setSpeed} mode={mode} onMode={setMode} />
       {state.status === "error" && <p className="banner" role="alert">{t("app.error")}</p>}
+      <p className="visually-hidden" aria-live="assertive">{state.announcement}</p>
+      {noticeShown && state.notice && (
+        <p className={`toast ${state.notice.kind}`} role="status">{state.notice.text}</p>
+      )}
       <main className="layout">
         <div className="left">
-          <Pitch roster={roster} frames={frames} cues={state.cues} cards={state.cards} ball={state.ball}
-            reducedMotion={reducedMotion} />
-          <Feed entries={state.feed} />
+          <Pitch roster={roster} frames={frames} cues={state.cues}
+            cards={masked.has("cards") ? {} : state.cards} ball={state.ball} reducedMotion={reducedMotion}
+            onPick={picking && square ? (id) => answer(square.id, id) : undefined} />
+          <Feed entries={state.feed} masked={masked} />
         </div>
         <div className="right">
           <Metrics roster={roster} stats={state.stats} xg={state.xg} mode={mode} />
-          <Card board={mockBoard} note={t("card.mock")} />
+          <Card board={board} roster={roster} language={language} pending={state.pending}
+            answers={state.answers} advice={state.advice} selected={selected} onSelect={setSelected}
+            onAnswer={answer} onMove={move} />
+          <Strategist advice={state.advice} note={state.strategistNote} onApply={applyAdvice} />
+          <Leaderboard rows={state.leaderboard} mode={profile.mode} />
         </div>
       </main>
+      {showFullTime && (
+        <FullTime roster={roster} score={state.stats?.score} board={board} moments={state.moments}
+          leaderboard={state.leaderboard} total={state.ranked} mode={profile.mode}
+          onClose={() => setFullTimeClosed(true)} />
+      )}
     </div>
   );
 }

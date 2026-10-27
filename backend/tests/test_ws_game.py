@@ -127,6 +127,9 @@ def test_stats_hide_masked_values_and_events_say_held(client: TestClient) -> Non
 
 def test_http_endpoints(client: TestClient) -> None:
     assert 2610 in client.get("/api/matches").json()["seeds"]
+    meta = client.get("/api/matches/2610").json()
+    assert meta["home_team_id"] == "NBA" and len(meta["teams"]) == 2
+    assert client.get("/api/matches/1").status_code == 404
     sid = start(client)
     state = client.get(f"/api/sessions/{sid}/state").json()
     assert state["session_id"] == sid and len(state["board"]["squares"]) == 25

@@ -51,7 +51,8 @@ class Fan:
     clock: FanClock
 
     def row(self) -> dict[str, Any]:
-        times = [s.answer["elapsed_s"] for s in self.board.squares if s.answer]
+        times = [s.answer["elapsed_s"] for s in self.board.squares
+                 if s.answer and s.state != "too_early"]
         return {"handle": self.handle, "points": self.board.points, "correct": self.board.correct,
                 "avg_answer_s": round(sum(times) / len(times), 1) if times else None}
 

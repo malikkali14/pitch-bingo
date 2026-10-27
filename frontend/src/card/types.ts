@@ -1,5 +1,5 @@
 // The card, shaped like the square record in spec 4.2 and the board.update message in 9.4,
-// so phase 4's real board can replace mock.ts without touching the component.
+// as backend/app/game/card.py sends it.
 
 export type SquareKind = "deadline" | "first" | "live";
 export type AnswerType = "player" | "team" | "number" | "choice" | "yesno";
@@ -26,14 +26,15 @@ export interface Square {
   kind: SquareKind;
   text: Record<string, string>; // per language, 60 characters at most
   answer_type: AnswerType;
-  options: string[];
+  options: string[]; // answer values: team ids, "level", "yes"/"no", range or choice keys
+  option_labels: Record<string, string[]>; // per language, same order as options
   deadline_s: number | null; // deadline squares: the match second the count freezes at
   trigger: Record<string, string> | null; // first-to-happen squares: an event filter
   resolver: string;
   masks: string[];
   cell: Cell;
   state: SquareState;
-  answer: { value: string; wall_ms: number; t: number } | null;
+  answer: { value: string; wall_ms: number; t: number; elapsed_s: number } | null;
   result: { status: SquareState; points: number; explanation: string; evidence_event_ids: string[] } | null;
   source_event_ids: string[]; // live squares
   closes_at: number | null; // open window: wall-clock ms (square.window_open in spec 9.4)
@@ -48,6 +49,7 @@ export interface Board {
   points: number;
   correct: number;
   bingos: number;
+  full_card?: boolean;
 }
 
 export function linesOf(cell: Cell): LineId[] {

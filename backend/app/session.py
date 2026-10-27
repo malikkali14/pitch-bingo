@@ -245,7 +245,8 @@ class MatchSession:
 
     def viewer_row(self) -> dict[str, Any]:
         board = self.game.board
-        times = [s.answer["elapsed_s"] for s in board.squares if s.answer]
+        times = [s.answer["elapsed_s"] for s in board.squares
+                 if s.answer and s.state != "too_early"]
         return {"handle": self.profile.handle, "points": board.points, "correct": board.correct,
                 "avg_answer_s": round(sum(times) / len(times), 1) if times else None}
 
@@ -253,7 +254,8 @@ class MatchSession:
         self._leaderboard_dirty = False
         self._leaderboard_sent_at = time.monotonic()
         return message("leaderboard", self.game.t, mode=self.profile.mode,
-                       rows=leaderboard(self.viewer_row(), self.fans.rows()))
+                       rows=leaderboard(self.viewer_row(), self.fans.rows()),
+                       total=len(self.fans.fans) + 1)
 
     def state(self) -> dict[str, Any]:
         """Debug snapshot (GET /api/sessions/{id}/state). No correct answers before results."""
