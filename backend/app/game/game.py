@@ -12,15 +12,25 @@ from typing import Any
 
 from app.game import ranges
 from app.game.bank import TEMPLATES
-from app.game.card import Board, Profile, Square, build_card
+from app.game.card import Board, Cell, Profile, Square, build_card
 from app.game.live import LiveProducer, Moment, build_live
 from app.game.resolve import Context, deadline_t, first_answer, matches, resolve_deadline
 from app.game.resolve import evidence as deadline_evidence
-from app.game.scorekeeper import Out, Scorekeeper, WindowClock
+from app.game.scorekeeper import Out, Scorekeeper, WindowClock, error
 from app.models import wall_ms as server_wall_ms
 from app.stats.core import RunningStats
 
 CATCH_UP_S = 3.0   # a window this far behind the clock was jumped over (dev panel)
+
+
+def parse_cell(raw: Any) -> Cell | None:
+    """A cell from the browser: {"row": r, "col": c} or [r, c]."""
+    try:
+        row, col = (raw["row"], raw["col"]) if isinstance(raw, dict) else raw
+        row, col = int(row), int(col)
+    except (TypeError, ValueError, KeyError):
+        return None
+    return (row, col) if 0 <= row < 5 and 0 <= col < 5 else None
 
 
 class Game:
@@ -69,6 +79,12 @@ class Game:
 
     def answer(self, square_id: str, value: Any) -> Out:
         return self.keeper.answer(square_id, value, self.t)
+
+    def move(self, from_cell: Any, to_cell: Any) -> Out:
+        cells = parse_cell(from_cell), parse_cell(to_cell)
+        if cells[0] is None or cells[1] is None:
+            return [error("board.move", "cells are {row, col} from 0 to 4")]
+        return self.keeper.move(cells[0], cells[1])
 
     def pause(self, on: bool) -> None:
         self.clock.pause(on)

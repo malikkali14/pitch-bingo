@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from app.game.card import Board, Square
+from app.game.card import Board, Cell, Square
 from app.game.scoring import LIVE_BASE, STATIC_BASE, check_lines, speed_points
 
 WINDOW_S = 20.0
@@ -183,6 +183,30 @@ class Scorekeeper:
         return {"type": "square.result", "square_id": sq.id, "status": sq.result["status"],
                 "points": sq.result["points"],
                 "correct_answer": sq.correct_answer if reveal else None}
+
+    # ---- moves (spec 4.7) ----------------------------------------------------------------
+
+    def move(self, from_cell: Cell, to_cell: Cell) -> Out:
+        """Swap an empty blank or wildcard with a waiting static, or another blank or wildcard.
+        A first-to-happen square in its silent window still counts as waiting."""
+        if self.announced_open():
+            return [error("board.move", "no moves while a window is open")]
+        if from_cell == to_cell:
+            return [error("board.move", "pick two different cells")]
+        source, target = self.board.at(from_cell), self.board.at(to_cell)
+        if not source.is_blank_like or self.board.locked(source):
+            return [error("board.move", "only an empty blank or a wildcard can move")]
+        if self.board.locked(target) or not self.can_take(target):
+            return [error("board.move", "that square can't move")]
+        source.cell, target.cell = target.cell, source.cell
+        return self.board_changed()
+
+    @staticmethod
+    def can_take(target: Square) -> bool:
+        if target.is_blank_like:
+            return True
+        silent_open = target.kind == "first" and target.state == "open"
+        return target.kind != "live" and (target.state == "waiting" or silent_open)
 
     # ---- lines ---------------------------------------------------------------------------
 
