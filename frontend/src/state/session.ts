@@ -1,15 +1,27 @@
 // Starts a session (POST /api/sessions) and streams its WebSocket (spec 9.3, 9.4).
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { ClientMessage, ServerMessage, Speed } from "../protocol";
+import type { Cell } from "../card/types";
+import type { ClientMessage, Profile, ServerMessage, Speed } from "../protocol";
 import { FrameStore } from "./frames";
 import { initialState, matchReducer, type MatchState } from "./match";
+
+/** What the setup screen chooses (spec 5.7); the server fills in the rest. */
+export type ProfileChoice = Partial<Pick<Profile, "mode" | "club" | "focus_player_id" | "handle">>;
+
+export interface Kickoff {
+  seed?: number;
+  profile: ProfileChoice;
+}
 
 export interface MatchSession {
   state: MatchState;
   frames: FrameStore;
   setSpeed(speed: Speed): void;
   send(msg: ClientMessage): void;
+  answer(squareId: string, value: string): void;
+  move(from: Cell, to: Cell): void;
+  applyAdvice(adviceId: string): void;
 }
 
 export function socketUrl(sessionId: string, location: Location = window.location): string {
@@ -17,19 +29,21 @@ export function socketUrl(sessionId: string, location: Location = window.locatio
   return `${scheme}//${location.host}/ws/sessions/${sessionId}`;
 }
 
-export function useMatchSession(seed?: number): MatchSession {
+/** Nothing happens until `kickoff` is set, so the setup screen can come first. */
+export function useMatchSession(kickoff: Kickoff | null): MatchSession {
   const [state, dispatch] = useReducer(matchReducer, initialState);
   const frames = useRef(new FrameStore()).current;
   const socket = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    if (!kickoff) return;
     let closed = false;
     (async () => {
       try {
         const response = await fetch("/api/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(seed === undefined ? {} : { seed }),
+          body: JSON.stringify(kickoff),
         });
         if (!response.ok) throw new Error(`POST /api/sessions: ${response.status}`);
         const { session_id } = (await response.json()) as { session_id: string };
@@ -54,7 +68,7 @@ export function useMatchSession(seed?: number): MatchSession {
       socket.current?.close();
       socket.current = null;
     };
-  }, [seed, frames]);
+  }, [kickoff, frames]);
 
   const send = useCallback((msg: ClientMessage) => {
     if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify(msg));
@@ -68,5 +82,29 @@ export function useMatchSession(seed?: number): MatchSession {
     [send],
   );
 
-  return { state, frames, setSpeed, send };
+  const answer = useCallback(
+    (squareId: string, value: string) => {
+      send({ type: "answer.submit", square_id: squareId, value });
+      dispatch({ kind: "answer", squareId, value });
+    },
+    [send],
+  );
+
+  const move = useCallback(
+    (from: Cell, to: Cell) => {
+      send({ type: "board.move", from_cell: from, to_cell: to });
+      dispatch({ kind: "moved" });
+    },
+    [send],
+  );
+
+  const applyAdvice = useCallback(
+    (adviceId: string) => {
+      send({ type: "strategy.apply", advice_id: adviceId });
+      dispatch({ kind: "moved" });
+    },
+    [send],
+  );
+
+  return { state, frames, setSpeed, send, answer, move, applyAdvice };
 }

@@ -1,5 +1,5 @@
 // Shared test data: a cut-down match from seed 2610.
-import type { MatchEvent, MatchMeta } from "./protocol";
+import type { MatchEvent, MatchMeta, Profile } from "./protocol";
 
 export const META: MatchMeta = {
   match_id: "syn-2610",
@@ -28,3 +28,8 @@ export function ev(type: string, fields: Partial<MatchEvent> & Record<string, un
     tags: [], ...fields,
   };
 }
+
+export const PROFILE: Profile = {
+  mode: "normal", club: "neutral", focus_player_id: null, language: "en", strategist: "suggest",
+  handle: "You",
+};

@@ -1,14 +1,27 @@
 // Match state built from server messages. Frames are kept out of here (see frames.ts) so the
 // whole screen doesn't re-render ten times a second.
 
-import { type ClockAnchor } from "../clock";
+import type { Board, Square } from "../card/types";
+import { minuteLabel, type ClockAnchor } from "../clock";
 import { feedEntry, type FeedEntry } from "../feed/templates";
-import type { MatchEvent, MatchMeta, ServerMessage, Speed, StatsMessage } from "../protocol";
+import { t } from "../i18n";
+import type {
+  EventMessage,
+  LeaderboardRow,
+  MatchEvent,
+  MatchMeta,
+  Profile,
+  ServerMessage,
+  Speed,
+  StatsMessage,
+  StrategyAdviceMessage,
+} from "../protocol";
 import { buildRoster, type Roster } from "../roster";
 import { initialBall, nextBall, type BallState } from "./ball";
 
 export const FEED_LIMIT = 100;
 export const CUE_LIMIT = 40;
+export const MOMENTS = 3;
 
 export type Status = "connecting" | "live" | "error";
 
@@ -23,20 +36,45 @@ export interface XgPoint {
   away: number;
 }
 
+export interface Notice {
+  text: string;
+  kind: "info" | "error";
+  at: number;
+}
+
+export interface Moment {
+  event: MatchEvent;
+  significance: number;
+  text: string;
+}
+
 export interface MatchState {
   status: Status;
   sessionId: string | null;
   meta: MatchMeta | null;
   roster: Roster | null;
+  profile: Profile | null;
   speed: Speed;
   anchor: ClockAnchor | null;
   fullTime: boolean;
   feed: FeedEntry[];
+  held: Record<string, FeedEntry>; // feed lines waiting for a window to close (spec 4.9)
   cues: Cue[];
   cards: Record<string, "yellow" | "red">;
   ball: BallState;
   stats: StatsMessage | null;
   xg: XgPoint[];
+  board: Board | null;
+  masks: Record<string, string[]>; // square id -> tags it hides
+  answers: Record<string, string | null>; // square id -> correct answer, once a result shows
+  pending: Record<string, string>; // answers sent, waiting for their result
+  advice: StrategyAdviceMessage | null; // a suggestion waiting for Apply
+  strategistNote: string | null; // the reason for the last automatic move
+  leaderboard: LeaderboardRow[];
+  ranked: number;
+  notice: Notice | null;
+  announcement: string; // read out by screen readers when an announced window opens
+  moments: Moment[];
 }
 
 export const initialState: MatchState = {
@@ -44,21 +82,36 @@ export const initialState: MatchState = {
   sessionId: null,
   meta: null,
   roster: null,
+  profile: null,
   speed: 1,
   anchor: null,
   fullTime: false,
   feed: [],
+  held: {},
   cues: [],
   cards: {},
   ball: initialBall,
   stats: null,
   xg: [],
+  board: null,
+  masks: {},
+  answers: {},
+  pending: {},
+  advice: null,
+  strategistNote: null,
+  leaderboard: [],
+  ranked: 0,
+  notice: null,
+  announcement: "",
+  moments: [],
 };
 
 export type Action =
   | { kind: "message"; msg: ServerMessage; now: number }
   | { kind: "status"; status: Status }
-  | { kind: "speed"; speed: Speed };
+  | { kind: "speed"; speed: Speed }
+  | { kind: "answer"; squareId: string; value: string }
+  | { kind: "moved" };
 
 export function matchReducer(state: MatchState, action: Action): MatchState {
   switch (action.kind) {
@@ -66,9 +119,18 @@ export function matchReducer(state: MatchState, action: Action): MatchState {
       return { ...state, status: action.status };
     case "speed":
       return { ...state, speed: action.speed };
+    case "answer":
+      return { ...state, pending: { ...state.pending, [action.squareId]: action.value } };
+    case "moved":
+      return { ...state, advice: null };
     case "message":
       return onMessage(state, action.msg, action.now);
   }
+}
+
+/** Tags hidden right now: any open square's masks (spec 4.9). */
+export function maskedTags(state: Pick<MatchState, "masks">): Set<string> {
+  return new Set(Object.values(state.masks).flat());
 }
 
 function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchState {
@@ -80,18 +142,96 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
         sessionId: msg.session_id,
         meta: msg.match,
         roster: buildRoster(msg.match),
+        profile: msg.profile,
         speed: msg.speed,
+        board: msg.card,
       };
     case "event":
-      return onEvent(state, msg.event, now);
+      return onEvent(state, msg, now);
     case "stats":
       return onStats(state, msg);
     case "frame":
       return state;
+    case "mask.on":
+      return { ...state, masks: { ...state.masks, [msg.square_id]: msg.tags } };
+    case "mask.off": {
+      const masks = { ...state.masks };
+      delete masks[msg.square_id];
+      return { ...state, masks };
+    }
+    case "feed.reveal":
+      return reveal(state, msg.entry_ids);
+    case "square.window_open": {
+      const square = state.board?.squares.find((s) => s.id === msg.square_id);
+      const next = updateSquare(state, msg.square_id, { state: "open", closes_at: msg.closes_at });
+      if (!square) return next;
+      const text = square.text[state.profile?.language ?? "en"] ?? square.text.en ?? "";
+      return { ...next, announcement: t("card.announce", { question: text }) };
+    }
+    case "square.added": {
+      const next = replaceSquare(state, msg.square);
+      const text = msg.square.text[state.profile?.language ?? "en"] ?? msg.square.text.en ?? "";
+      return { ...next, announcement: t("card.announce_live", { question: text }) };
+    }
+    case "square.result": {
+      const pending = { ...state.pending };
+      delete pending[msg.square_id];
+      const square = state.board?.squares.find((s) => s.id === msg.square_id);
+      const live = square?.kind === "live";
+      const next = updateSquare(state, msg.square_id, {
+        state: msg.status === "correct" && live ? "wildcard" : msg.status,
+        result: {
+          status: msg.status,
+          points: msg.points,
+          explanation: square?.result?.explanation ?? "",
+          evidence_event_ids: square?.result?.evidence_event_ids ?? [],
+        },
+      });
+      return { ...next, pending, answers: { ...state.answers, [msg.square_id]: msg.correct_answer } };
+    }
+    case "square.explanation":
+      return explain(state, msg.square_id, msg.text);
+    case "board.update": {
+      const { squares, scored_lines, points, correct, bingos, full_card } = msg;
+      return { ...state, board: { squares, scored_lines, points, correct, bingos, full_card } };
+    }
+    case "board.line":
+      return notice(state, t(msg.blank_slate ? "card.blank_slate" : "card.line_scored",
+        { points: msg.points }), "info", now);
+    case "board.full_card":
+      return notice(state, t("card.full_card", { points: msg.points }), "info", now);
+    case "strategy.advice":
+      return msg.applied
+        ? { ...state, advice: null, strategistNote: msg.reason }
+        : { ...state, advice: msg, strategistNote: null };
+    case "leaderboard":
+      return { ...state, leaderboard: msg.rows, ranked: msg.total };
+    case "error": {
+      // A refused answer frees the square to try again; anything else just shows.
+      const pending = msg.request === "answer.submit" ? {} : state.pending;
+      return { ...notice(state, msg.reason, "error", now), pending };
+    }
   }
 }
 
-function onEvent(state: MatchState, e: MatchEvent, now: number): MatchState {
+function notice(state: MatchState, text: string, kind: Notice["kind"], at: number): MatchState {
+  return { ...state, notice: { text, kind, at } };
+}
+
+function updateSquare(state: MatchState, id: string, patch: Partial<Square>): MatchState {
+  if (!state.board) return state;
+  const squares = state.board.squares.map((s) => (s.id === id ? { ...s, ...patch } : s));
+  return { ...state, board: { ...state.board, squares } };
+}
+
+function replaceSquare(state: MatchState, square: Square): MatchState {
+  if (!state.board) return state;
+  const squares = state.board.squares.map((s) => (s.id === square.id ? square : s));
+  return { ...state, board: { ...state.board, squares } };
+}
+
+function onEvent(state: MatchState, msg: EventMessage, now: number): MatchState {
+  const e = msg.event;
   const next = {
     ...state,
     anchor: { t: e.t, clock: e.clock, period: e.period },
@@ -99,27 +239,65 @@ function onEvent(state: MatchState, e: MatchEvent, now: number): MatchState {
     fullTime:
       (e.type === "period_end" && e.period === 2) ||
       (state.fullTime && e.t >= (state.anchor?.t ?? 0)),
-    cues: [...state.cues.slice(-(CUE_LIMIT - 1)), { event: e, at: now }],
+    // A held event's cue would give away the answer, so it never shows on the pitch.
+    cues: msg.held ? state.cues : [...state.cues.slice(-(CUE_LIMIT - 1)), { event: e, at: now }],
     ball: state.roster ? nextBall(state.ball, e, state.roster) : state.ball,
   };
   if (e.type === "card" && e.player_id) {
     next.cards = { ...state.cards, [e.player_id]: e.card === "yellow" ? "yellow" : "red" };
   }
   const entry = state.roster ? feedEntry(e, state.roster) : null;
-  if (entry && !state.feed.some((f) => f.entry_id === entry.entry_id)) {
-    next.feed = [entry, ...state.feed].slice(0, FEED_LIMIT);
+  if (entry && msg.significance > 0) next.moments = topMoments(state.moments, e, msg.significance, entry.text);
+  if (!entry || state.feed.some((f) => f.entry_id === entry.entry_id)) return next;
+  if (msg.held) return { ...next, held: { ...state.held, [entry.entry_id]: entry } };
+  return { ...next, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+}
+
+function topMoments(moments: Moment[], event: MatchEvent, significance: number, text: string): Moment[] {
+  if (moments.some((m) => m.event.event_id === event.event_id)) return moments;
+  return [...moments, { event, significance, text }]
+    .sort((a, b) => b.significance - a.significance || a.event.t - b.event.t)
+    .slice(0, MOMENTS);
+}
+
+function reveal(state: MatchState, ids: string[]): MatchState {
+  const held = { ...state.held };
+  const revealed: FeedEntry[] = [];
+  for (const id of ids) {
+    const entry = held[id];
+    if (!entry) continue;
+    delete held[id];
+    revealed.push({ ...entry, tag: t("feed.revealed"), revealed: true });
   }
-  return next;
+  if (!revealed.length) return { ...state, held };
+  return { ...state, held, feed: [...revealed.reverse(), ...state.feed].slice(0, FEED_LIMIT) };
+}
+
+function explain(state: MatchState, squareId: string, text: string): MatchState {
+  const next = updateSquare(state, squareId, {});
+  const entry: FeedEntry = {
+    entry_id: `explain:${squareId}`,
+    minute: state.anchor ? minuteLabel(state.anchor.clock) : "",
+    icon: "💡",
+    text,
+    tag: t("tag.answer"),
+    ai: false,
+    tags: [],
+  };
+  if (state.feed.some((f) => f.entry_id === entry.entry_id)) return next;
+  return { ...next, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
 }
 
 function onStats(state: MatchState, msg: StatsMessage): MatchState {
   const meta = state.meta;
   if (!meta) return { ...state, stats: msg };
-  const point = {
-    t: msg.t,
-    home: msg.clubs[meta.home_team_id]?.xg ?? 0,
-    away: msg.clubs[meta.away_team_id]?.xg ?? 0,
-  };
+  const home = msg.clubs[meta.home_team_id]?.xg;
+  const away = msg.clubs[meta.away_team_id]?.xg;
+  // While xG is masked the timeline just pauses.
+  if (home === null || away === null || home === undefined || away === undefined) {
+    return { ...state, stats: msg };
+  }
+  const point = { t: msg.t, home, away };
   // A jump back in time (dev panel) restarts the timeline from that point.
   const kept = state.xg.filter((p) => p.t < msg.t);
   const last = kept[kept.length - 1];

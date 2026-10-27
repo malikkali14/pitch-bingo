@@ -1,18 +1,22 @@
-// Mock board for building the card UI before the game API exists (phase 4). It shows every
-// square state from spec 4.3 at once: a scored column, an open window, and three empty blanks.
-// Replace with the session's board.update messages when phase 4 lands.
+// Test fixture: a board in the server's shape (backend/app/game/card.py) showing every square
+// state from spec 4.3 at once: a scored column, an open window, and three empty blanks.
 
 import type { Board, Square, SquareKind, SquareState } from "./types";
 
 type Spec = [row: number, col: number, kind: SquareKind, text: string, state: SquareState,
   extra?: Partial<Square>];
 
-const RANGES = ["0–1", "2–3", "4+"];
-const TEAMS = ["Northbridge", "Kestrel"];
+const RANGES = ["0-1", "2-3", "4+"];
+const TEAMS = ["NBA", "KVL"];
+const LABELS: Record<string, string> = {
+  "0-1": "0–1", "2-3": "2–3", "4+": "4+", NBA: "Northbridge", KVL: "Kestrel", yes: "Yes", no: "No",
+  foul: "Foul", offside: "Offside", advantage: "Advantage played", no_call: "No call",
+  corner: "Corner", goal_kick: "Goal kick", throw_in: "Throw-in",
+};
 
 const SPECS: Spec[] = [
   [0, 0, "live", "What did the referee just give?", "wildcard",
-    { answer_type: "choice", options: ["Foul", "Offside", "Advantage played", "No call"],
+    { answer_type: "choice", options: ["foul", "offside", "advantage", "no_call"],
       source_event_ids: ["e000221", "e000222"] }],
   [0, 1, "deadline", "How many yellow cards by 15'?", "correct", { deadline_s: 900, masks: ["cards"] }],
   [0, 2, "first", "Who commits the first foul?", "correct", { answer_type: "team", masks: ["fouls"] }],
@@ -23,7 +27,7 @@ const SPECS: Spec[] = [
     { deadline_s: 1800, answer_type: "team", masks: ["shots"] }],
   [1, 2, "first", "Who takes the first shot?", "too_early", { answer_type: "team", masks: ["shots"] }],
   [1, 3, "deadline", "Will there be a goal by 40'?", "open",
-    { deadline_s: 2400, answer_type: "yesno", options: ["Yes", "No"], masks: ["goals"] }],
+    { deadline_s: 2400, answer_type: "yesno", options: ["yes", "no"], masks: ["goals"] }],
   [1, 4, "first", "Who is first caught offside?", "waiting", { answer_type: "team", masks: ["offsides"] }],
   [2, 0, "deadline", "How many offsides by 45:00?", "correct", { deadline_s: 2700, masks: ["offsides"] }],
   [2, 1, "first", "Who is booked first?", "waiting", { answer_type: "team", masks: ["cards"] }],
@@ -37,24 +41,26 @@ const SPECS: Spec[] = [
   [3, 3, "deadline", "How many fouls by Kestrel by 70'?", "waiting", { deadline_s: 4200, masks: ["fouls"] }],
   [3, 4, "deadline", "How many yellow cards by 80'?", "waiting", { deadline_s: 4800, masks: ["cards"] }],
   [4, 0, "live", "How does play restart?", "wildcard",
-    { answer_type: "choice", options: ["Corner", "Goal kick", "Throw-in"], source_event_ids: ["e000705"] }],
+    { answer_type: "choice", options: ["corner", "goal_kick", "throw_in"], source_event_ids: ["e000705"] }],
   [4, 1, "deadline", "How many fouls by Northbridge by 50'?", "waiting",
     { deadline_s: 3000, masks: ["fouls"] }],
   [4, 2, "deadline", "How many corners by 90:00?", "waiting", { deadline_s: 5400, masks: ["corners"] }],
   [4, 3, "deadline", "Will there be a goal by 85'?", "waiting",
-    { deadline_s: 5100, answer_type: "yesno", options: ["Yes", "No"], masks: ["goals"] }],
+    { deadline_s: 5100, answer_type: "yesno", options: ["yes", "no"], masks: ["goals"] }],
   [4, 4, "live", "", "empty_blank"],
 ];
 
 function square([row, col, kind, text, state, extra = {}]: Spec): Square {
   const blank = state === "empty_blank";
   const answerType = extra.answer_type ?? "number";
+  const options = extra.options ?? (answerType === "number" ? RANGES : answerType === "team" ? TEAMS : []);
   return {
     id: blank ? `blank_${row}${col}` : `sq_${String(row * 5 + col).padStart(2, "0")}`,
     kind,
     text: text ? { en: text } : {},
     answer_type: answerType,
-    options: answerType === "number" ? RANGES : answerType === "team" ? TEAMS : [],
+    options,
+    option_labels: options.length ? { en: options.map((o) => LABELS[o] ?? o) } : {},
     deadline_s: null,
     trigger: null,
     resolver: blank ? "" : "mock",

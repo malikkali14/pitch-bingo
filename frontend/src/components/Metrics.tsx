@@ -17,6 +17,9 @@ interface Props {
 const dash = "–";
 const num = (v: number | null | undefined, digits = 0, unit = "") =>
   v === null || v === undefined ? dash : `${v.toFixed(digits)}${unit}`;
+/** A stat an open square depends on arrives as null: show "Hidden" (spec 3, 4.9). */
+const shown = (v: number | null | undefined, text: (v: number) => string = String) =>
+  v === null || v === undefined ? t("metrics.hidden") : text(v);
 
 export function Metrics({ roster, stats, xg, mode }: Props) {
   if (!stats) {
@@ -30,19 +33,23 @@ export function Metrics({ roster, stats, xg, mode }: Props) {
   const home = stats.clubs[roster.home.id];
   const away = stats.clubs[roster.away.id];
   const pressure = stats.patterns.pressure;
+  const masked = new Set(stats.masked ?? []);
+  const shots = (c: typeof home) => shown(c.shots, (n) => `${n} (${c.shots_on_target})`);
+  const cards = (c: typeof home) => shown(c.yellow_cards, (n) => `${n} / ${c.red_cards}`);
+  const tilt = (id: string) => masked.has("possession")
+    ? t("metrics.hidden") : num(pressure[id]?.field_tilt, 0, "%");
   const rows: [string, string, string][] = [
-    [t("metrics.shots"), `${home.shots} (${home.shots_on_target})`, `${away.shots} (${away.shots_on_target})`],
-    [t("metrics.corners"), `${home.corners}`, `${away.corners}`],
-    [t("metrics.fouls"), `${home.fouls}`, `${away.fouls}`],
-    [t("metrics.cards"), `${home.yellow_cards} / ${home.red_cards}`, `${away.yellow_cards} / ${away.red_cards}`],
+    [t("metrics.shots"), shots(home), shots(away)],
+    [t("metrics.corners"), shown(home.corners), shown(away.corners)],
+    [t("metrics.fouls"), shown(home.fouls), shown(away.fouls)],
+    [t("metrics.cards"), cards(home), cards(away)],
   ];
   if (mode === "advanced") {
     rows.push(
-      [t("metrics.xg"), num(home.xg, 2), num(away.xg, 2)],
+      [t("metrics.xg"), shown(home.xg, (n) => n.toFixed(2)), shown(away.xg, (n) => n.toFixed(2))],
       [t("metrics.pass_accuracy"), num(home.pass_accuracy, 0, "%"), num(away.pass_accuracy, 0, "%")],
       [t("metrics.ppda"), num(pressure[roster.home.id]?.ppda, 1), num(pressure[roster.away.id]?.ppda, 1)],
-      [t("metrics.field_tilt"), num(pressure[roster.home.id]?.field_tilt, 0, "%"),
-        num(pressure[roster.away.id]?.field_tilt, 0, "%")],
+      [t("metrics.field_tilt"), tilt(roster.home.id), tilt(roster.away.id)],
     );
   }
   return (
@@ -72,7 +79,7 @@ export function Metrics({ roster, stats, xg, mode }: Props) {
       <ChaosMeter value={stats.patterns.chaos.value} inControl={roster.team(stats.patterns.chaos.in_control)?.short_name} />
       {mode === "advanced" && (
         <>
-          <XgTimeline points={xg} now={stats.t} roster={roster} />
+          {!masked.has("shots") && <XgTimeline points={xg} now={stats.t} roster={roster} />}
           <p className="stat-line">
             <span className="stat-label">{t("metrics.tempo")}</span> {stats.patterns.rhythm.tempo ?? dash}
           </p>
@@ -83,7 +90,19 @@ export function Metrics({ roster, stats, xg, mode }: Props) {
   );
 }
 
-export function SplitBar({ label, home, homeName, awayName }: { label: string; home: number; homeName: string; awayName: string }) {
+export function SplitBar({ label, home, homeName, awayName }: { label: string; home: number | null; homeName: string; awayName: string }) {
+  if (home === null) {
+    return (
+      <div className="split">
+        <div className="split-labels">
+          <span>{homeName}</span>
+          <span className="stat-label">{label}: {t("metrics.hidden")}</span>
+          <span>{awayName}</span>
+        </div>
+        <div className="split-bar hidden" aria-hidden="true" />
+      </div>
+    );
+  }
   const away = 100 - home;
   return (
     <div className="split">

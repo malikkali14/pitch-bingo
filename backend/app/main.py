@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.engine.source import available_seeds
+from app.engine.source import MATCHES_DIR, available_seeds, load_match
 from app.models import CreateSession, SessionCreated
 from app.session import sessions
 
@@ -45,6 +45,15 @@ async def create_session(body: CreateSession) -> SessionCreated:
 @app.get("/api/matches")
 async def matches() -> dict[str, Any]:
     return {"seeds": available_seeds(), "default": settings.default_seed}
+
+
+@app.get("/api/matches/{seed}")
+async def match_metadata(seed: int) -> dict[str, Any]:
+    """Clubs and players for the setup screen, before a session exists."""
+    try:
+        return load_match(MATCHES_DIR / str(seed)).meta
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"no match for seed {seed}") from None
 
 
 @app.get("/api/sessions/{session_id}/state")
