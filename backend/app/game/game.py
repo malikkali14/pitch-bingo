@@ -14,6 +14,7 @@ from app.game import ranges
 from app.game.bank import TEMPLATES
 from app.game.card import Board, Cell, Profile, Square, build_card
 from app.game.live import LiveProducer, Moment, build_live
+from app.game.masks import Masks
 from app.game.resolve import Context, deadline_t, first_answer, matches, resolve_deadline
 from app.game.resolve import evidence as deadline_evidence
 from app.game.scorekeeper import Out, Scorekeeper, WindowClock, error
@@ -52,6 +53,9 @@ class Game:
         self.full_time = False
         self.live = LiveProducer(meta["home_team_id"], meta["away_team_id"], planted)
         self.live_used: Counter[str] = Counter()
+        self.masks = Masks()
+        for sq in self._kickoff_masked():
+            self.masks.on(sq.id, sq.masks)
 
     # ---- input from the session ----------------------------------------------------------
 
@@ -71,23 +75,53 @@ class Game:
             out += self._add_live(moment, live)
         if event["type"] == "period_end" and event["period"] == 2:
             out += self._full_time()
-        return out + self.keeper.tick()
+        return self._apply(out + self.keeper.tick())
 
     def on_tick(self, t: float) -> Out:
         self.t = max(self.t, t)
-        return self._deadlines(t, strict=False, live=None) + self.keeper.tick()
+        return self._apply(self._deadlines(t, strict=False, live=None) + self.keeper.tick())
 
     def answer(self, square_id: str, value: Any) -> Out:
-        return self.keeper.answer(square_id, value, self.t)
+        return self._apply(self.keeper.answer(square_id, value, self.t))
 
     def move(self, from_cell: Any, to_cell: Any) -> Out:
         cells = parse_cell(from_cell), parse_cell(to_cell)
         if cells[0] is None or cells[1] is None:
             return [error("board.move", "cells are {row, col} from 0 to 4")]
-        return self.keeper.move(cells[0], cells[1])
+        return self._apply(self.keeper.move(cells[0], cells[1]))
 
     def pause(self, on: bool) -> None:
         self.clock.pause(on)
+
+    # ---- masks and hold-backs (spec 4.9) -------------------------------------------------
+
+    def _kickoff_masked(self) -> list[Square]:
+        return [s for s in self.board.squares if s.kind == "first" and s.masks]
+
+    def initial_messages(self) -> Out:
+        """Sent after session.ready: first-to-happen squares mask their tags from kickoff."""
+        return [{"type": "mask.on", "square_id": sq.id, "tags": list(sq.masks)}
+                for sq in self._kickoff_masked() if sq.id in self.masks.by_square]
+
+    def hold(self, event: dict[str, Any]) -> bool:
+        """Whether this event's feed entry waits for a window to close. Ask after on_event,
+        so an event that opens a window is held by it."""
+        return self.masks.hold(event["event_id"], event.get("tags") or [])
+
+    def redact_stats(self, snapshot: dict[str, Any]) -> dict[str, Any]:
+        return self.masks.redact(snapshot)
+
+    def _apply(self, out: Out) -> Out:
+        """Track mask messages, and reveal held entries once nothing masks them."""
+        extra: Out = []
+        for msg in out:
+            if msg["type"] == "mask.on":
+                self.masks.on(msg["square_id"], msg["tags"])
+            elif msg["type"] == "mask.off":
+                released = self.masks.off(msg["square_id"])
+                if released:
+                    extra.append({"type": "feed.reveal", "entry_ids": released})
+        return out + extra
 
     # ---- windows -------------------------------------------------------------------------
 
