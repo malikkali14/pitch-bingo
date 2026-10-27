@@ -10,7 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from agent_framework import BaseChatClient, ChatResponse, Message
+from agent_framework import BaseChatClient, ChatResponse, FunctionInvocationLayer, Message
 
 Reply = str | BaseException
 Script = Sequence[Reply] | Callable[["Call"], Reply]
@@ -23,7 +23,9 @@ class Call:
     options: dict[str, Any] = field(default_factory=dict)
 
 
-class FakeChatClient(BaseChatClient):
+class FakeChatClient(FunctionInvocationLayer[Any], BaseChatClient[Any]):
+    """The same layers as a real client, so agents treat it like one."""
+
     def __init__(self, replies: Script, delay: float = 0.0) -> None:
         super().__init__()
         self.script = replies if callable(replies) else list(replies)

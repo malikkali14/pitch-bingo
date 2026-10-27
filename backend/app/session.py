@@ -18,6 +18,8 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from app.agents.clients import ChatClients, shared_clients
+from app.agents.orchestrator import Orchestrator
 from app.config import settings
 from app.engine.clock import ReplayClock
 from app.engine.source import Frame, ReplaySource, Rewind, Tick
@@ -56,7 +58,8 @@ def planted_segments(folder: Path) -> frozenset[int]:
 
 
 class MatchSession:
-    def __init__(self, seed: int, profile: dict[str, Any]) -> None:
+    def __init__(self, seed: int, profile: dict[str, Any],
+                 clients: ChatClients | None = None) -> None:
         self.id = uuid.uuid4().hex
         self.seed = seed
         self.clock = ReplayClock(running=False)  # kickoff waits for the first socket
@@ -65,6 +68,7 @@ class MatchSession:
         self.profile = Profile.parse(profile, self.meta)   # ValueError for unknown ids
         self.planted = planted_segments(self.source.folder)
         self.stats = StatsEngine(self.meta)
+        self.agents = Orchestrator(clients, self.meta, lambda: self.profile, self._publish)
         self._new_game()
         self.position = 0.0
         self.task: asyncio.Task[None] | None = None
@@ -160,6 +164,7 @@ class MatchSession:
         except TimeoutError:
             pass
         finally:
+            self.agents.cancel()
             if on_close is not None:
                 on_close(self)
 
@@ -189,6 +194,10 @@ class MatchSession:
                     held = self.game.hold(item)
                     self._broadcast(message("event", item["t"], event=item,
                                             significance=result.significance, held=held))
+                    self.agents.on_event(
+                        item, result.significance, result.triggers, result.milestones,
+                        lambda: self.game.redact_stats(self.stats.snapshot()), held,
+                        self.stats.core.last_xg if item["type"] == "shot" else None)
                 self._send(out)
 
     def _reset(self, rewound: bool = False) -> None:
@@ -198,6 +207,7 @@ class MatchSession:
         self.stats = StatsEngine(self.meta)
         self.position = 0.0
         self._stats_dirty = True
+        self.agents.cancel()
         self._new_game()
         if self.clock.paused:
             self.game.pause(True)
@@ -235,6 +245,10 @@ class MatchSession:
 
     def _wrap(self, msg: dict[str, Any], t: float) -> dict[str, Any]:
         return message(msg["type"], t, **{k: v for k, v in msg.items() if k != "type"})
+
+    def _publish(self, msg: dict[str, Any]) -> None:
+        """Results from the agents, applied on the event loop like everything else."""
+        self._broadcast(self._wrap(msg, self.position))
 
     def _send(self, out: Out) -> None:
         t = self.game.t
@@ -274,16 +288,18 @@ class MatchSession:
         return not self._queues and time.monotonic() - self._last_socket >= IDLE_CLOSE_S
 
     def close(self) -> None:
+        self.agents.cancel()
         if self.task is not None:
             self.task.cancel()
 
 
 class SessionRegistry:
-    def __init__(self) -> None:
+    def __init__(self, clients: Callable[[], ChatClients | None] = shared_clients) -> None:
         self._sessions: dict[str, MatchSession] = {}
+        self.clients = clients      # tests swap in a fake
 
     def create(self, seed: int, profile: dict[str, Any]) -> MatchSession:
-        session = MatchSession(seed, profile)
+        session = MatchSession(seed, profile, self.clients())
         self._sessions[session.id] = session
         session.start(on_close=lambda s: self._sessions.pop(s.id, None))
         return session

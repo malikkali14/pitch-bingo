@@ -177,3 +177,35 @@ describe("game reducer", () => {
     expect(state.ranked).toBe(21);
   });
 });
+
+describe("AI feed lines", () => {
+  const replace = (id: string, held = false): ServerMessage => ({
+    type: "feed.replace", t: 30, wall: 0, entry_id: id, text: "AI line.", ai: true,
+    clock: "00:30", event_type: "pressure", held,
+  });
+
+  it("replaces a template line in place and marks it AI", () => {
+    const corner = ev("corner", { clock: "00:30" });
+    let state = send(ready(), { type: "event", t: 30, wall: 0, event: corner, significance: 45, held: false });
+    state = send(state, replace(corner.event_id));
+    expect(state.feed).toHaveLength(1);
+    expect(state.feed[0]).toMatchObject({ entry_id: corner.event_id, text: "AI line.", ai: true, tag: "Corner" });
+  });
+
+  it("adds a line for a moment with no template, and keeps a held one back", () => {
+    let state = send(ready(), replace("e9"));
+    expect(state.feed[0]).toMatchObject({ entry_id: "e9", minute: "1'", tag: "Moment", ai: true });
+    state = send(state, replace("e10", true));
+    expect(state.feed.map((f) => f.entry_id)).toEqual(["e9"]);
+    state = send(state, { type: "feed.reveal", t: 50, wall: 0, entry_ids: ["e10"] });
+    expect(state.feed[0]).toMatchObject({ entry_id: "e10", text: "AI line.", tag: "Revealed" });
+  });
+
+  it("updates a held template line so the reveal shows the AI text", () => {
+    const foul = ev("foul", { tags: ["fouls"] });
+    let state = send(ready(), { type: "event", t: 10, wall: 0, event: foul, significance: 45, held: true });
+    state = send(state, replace(foul.event_id, true),
+      { type: "feed.reveal", t: 40, wall: 0, entry_ids: [foul.event_id] });
+    expect(state.feed[0]).toMatchObject({ text: "AI line.", ai: true, revealed: true });
+  });
+});

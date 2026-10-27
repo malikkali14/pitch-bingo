@@ -3,10 +3,11 @@
 
 import type { Board, Square } from "../card/types";
 import { minuteLabel, type ClockAnchor } from "../clock";
-import { feedEntry, type FeedEntry } from "../feed/templates";
-import { t } from "../i18n";
+import { feedEntry, iconFor, type FeedEntry } from "../feed/templates";
+import { has, t } from "../i18n";
 import type {
   EventMessage,
+  FeedReplaceMessage,
   LeaderboardRow,
   MatchEvent,
   MatchMeta,
@@ -161,6 +162,8 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
     }
     case "feed.reveal":
       return reveal(state, msg.entry_ids);
+    case "feed.replace":
+      return replaceLine(state, msg);
     case "square.window_open": {
       const square = state.board?.squares.find((s) => s.id === msg.square_id);
       const next = updateSquare(state, msg.square_id, { state: "open", closes_at: msg.closes_at });
@@ -258,6 +261,22 @@ function topMoments(moments: Moment[], event: MatchEvent, significance: number, 
   return [...moments, { event, significance, text }]
     .sort((a, b) => b.significance - a.significance || a.event.t - b.event.t)
     .slice(0, MOMENTS);
+}
+
+function replaceLine(state: MatchState, msg: FeedReplaceMessage): MatchState {
+  const patch = { text: msg.text, ai: true };
+  if (state.feed.some((f) => f.entry_id === msg.entry_id)) {
+    return { ...state, feed: state.feed.map((f) => (f.entry_id === msg.entry_id ? { ...f, ...patch } : f)) };
+  }
+  const held = state.held[msg.entry_id];
+  if (held) return { ...state, held: { ...state.held, [msg.entry_id]: { ...held, ...patch } } };
+  const kind = msg.event_type.startsWith("period") ? "period" : msg.event_type;
+  const entry: FeedEntry = {
+    entry_id: msg.entry_id, minute: minuteLabel(msg.clock), icon: iconFor(msg.event_type),
+    text: msg.text, tag: has(`tag.${kind}`) ? t(`tag.${kind}`) : t("tag.moment"), ai: true, tags: [],
+  };
+  if (msg.held) return { ...state, held: { ...state.held, [msg.entry_id]: entry } };
+  return { ...state, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
 }
 
 function reveal(state: MatchState, ids: string[]): MatchState {

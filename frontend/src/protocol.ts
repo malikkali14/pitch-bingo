@@ -231,6 +231,18 @@ export interface LeaderboardMessage extends Envelope {
   total: number; // everyone ranked: you plus the simulated fans
 }
 
+/** An AI line for a moment (spec 9.4 feed.replace): it replaces the template line with the
+ * same entry_id, or adds a line where the moment had none. */
+export interface FeedReplaceMessage extends Envelope {
+  type: "feed.replace";
+  entry_id: string;
+  text: string;
+  ai: true;
+  clock: string;
+  event_type: string;
+  held: boolean;
+}
+
 export interface FeedRevealMessage extends Envelope {
   type: "feed.reveal";
   entry_ids: string[];
@@ -258,6 +270,7 @@ export type ServerMessage =
   | StrategyAdviceMessage
   | LeaderboardMessage
   | FeedRevealMessage
+  | FeedReplaceMessage
   | ErrorMessage;
 
 export const SPEEDS = [1, 5, 10] as const;
