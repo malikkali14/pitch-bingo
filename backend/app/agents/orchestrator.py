@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from app.agents import narrator, recap, square_writer, strategist_reason, tutor
+from app.agents import narrator, personalizer, recap, square_writer, strategist_reason, tutor
 from app.agents.clients import ChatClients
 from app.agents.messages import Insight
 from app.agents.runner import AgentRunner
@@ -36,6 +36,7 @@ class Orchestrator:
         self.names = narrator.Names(meta)
         self.runners = {
             "narrator": AgentRunner(narrator.SPEC, clients, now),
+            "personalizer": AgentRunner(personalizer.SPEC, clients, now),
             "square_writer": AgentRunner(square_writer.SPEC, clients, now),
             "strategist": AgentRunner(strategist_reason.SPEC, clients, now),
             "rules_tutor": AgentRunner(tutor.TUTOR, clients, now),
@@ -64,22 +65,44 @@ class Orchestrator:
         self._spawn("narrator", self._narrate(event, moment, held))
 
     async def _narrate(self, event: dict[str, Any], moment: dict[str, Any], held: bool) -> None:
-        mode = self.profile().mode
+        profile = self.profile()
+        mode = profile.mode
         limit = LIMITS[mode]
+        if self.runners["narrator"].breaker.forced:
+            return              # the failure switch: template lines only, cached ones too
+        key = (self.meta["match_id"], event["event_id"], personalizer.profile_hash(profile))
+        text = personalizer.cached(key)
+        if text is None:
+            text = await self._insight_line(moment, profile, limit)
+        if text is None:
+            return
+        personalizer.remember(key, text)
+        self.lines.append((moment["significance"], event["clock"], text))
+        # Replaces the template line in place; a held line stays held until revealed.
+        self.publish({"type": "feed.replace", "entry_id": event["event_id"], "text": text,
+                      "ai": True, "clock": event["clock"], "event_type": event["type"],
+                      "held": held})
+
+    async def _insight_line(self, moment: dict[str, Any], profile: Profile, limit: int
+                            ) -> str | None:
+        """Narrator, then personalizer; the insight's plain rendering if the second fails."""
+        mode = profile.mode
+        found: dict[str, Insight] = {}
 
         def check(insight: Insight) -> tuple[str | None, list[str]]:
             text = narrator.render(insight, limit)
             if text is None:
                 return None, [f"the headline must fit in {limit} characters"]
+            found["insight"] = insight
             return text, verify_line(text, moment, self.meta, mode)
 
         outcome = await self.runners["narrator"].run(moment, check)
-        if outcome.value is not None:
-            self.lines.append((moment["significance"], event["clock"], outcome.value))
-            # Replaces the template line in place; a held line stays held until revealed.
-            self.publish({"type": "feed.replace", "entry_id": event["event_id"],
-                          "text": outcome.value, "ai": True, "clock": event["clock"],
-                          "event_type": event["type"], "held": held})
+        if outcome.value is None:
+            return None
+        payload = personalizer.build_input(found["insight"], profile, self.names)
+        personal = await self.runners["personalizer"].run(
+            payload, lambda value: personalizer.check(value, moment, payload, self.meta, mode))
+        return personal.value or outcome.value
 
     # ---- live squares (spec 8.4, the moment workflow's second branch) --------------------
 

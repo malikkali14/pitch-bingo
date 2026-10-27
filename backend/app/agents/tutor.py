@@ -86,10 +86,11 @@ def rule_for(template: str, answer: str | None) -> str | None:
 
 def build_input(square: dict[str, Any]) -> dict[str, Any]:
     """square: question, kind, template, answer (label), answer key, result, clock, events."""
-    rule = rule_for(square["template"], square.get("answer_key", square.get("answer", "")
-                                                   .lower().replace("-", "_").replace(" ", "_")))
-    payload: dict[str, Any] = {k: square[k] for k in ("square_id", "question", "kind", "answer", "result",
-                                      "clock", "events") if k in square}
+    answer_key = square.get("answer_key") or \
+        square.get("answer", "").lower().replace("-", "_").replace(" ", "_")
+    rule = rule_for(square["template"], answer_key)
+    keys = ("square_id", "question", "kind", "answer", "result", "clock", "events")
+    payload: dict[str, Any] = {k: square[k] for k in keys if k in square}
     if rule:
         payload["rule"] = {"call": rule, "summary": RULES[rule]}
     return payload

@@ -10,3 +10,12 @@ import os
 os.environ["FOUNDRY_PROJECT_ENDPOINT"] = ""
 os.environ["ENABLE_INSTRUMENTATION"] = "false"
 os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"] = ""
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def fresh_line_cache():
+    """The personalizer's line cache is process-wide; each test starts empty."""
+    from app.agents import personalizer
+    personalizer.CACHE.clear()

@@ -33,6 +33,10 @@ def shot_event() -> dict[str, Any]:
                      ball_speed_kmh=101.4, goal_y=33.0, goal_z=1.2, clock="10:25")
 
 
+def narrator_calls(fake: FakeChatClient) -> list[Any]:
+    return [c for c in fake.calls if "explain football moments" in c.instructions]
+
+
 def insight(headline: str, why: str = "") -> str:
     return json.dumps({"moment_id": "e000001", "headline_facts": [headline],
                        "why_facts": [why] if why else [], "tags": [], "evidence_ids": [],
@@ -86,7 +90,7 @@ async def test_a_valid_insight_replaces_the_template_line():
                           "text": f"{surname} tests the keeper at 101 km/h. Northbridge have 4 "
                                   "shots to 1.", "ai": True, "clock": "10:25",
                           "event_type": "shot", "held": False}]
-    call = fake.calls[0]
+    call = narrator_calls(fake)[0]
     assert "Use ONLY the facts and numbers in INPUT" in call.instructions
     assert call.prompt.startswith("INPUT: {")
     assert orch.health()["narrator"]["ai"] == 1
@@ -98,15 +102,16 @@ async def test_an_invented_number_is_retried_with_the_errors():
     run_moment(orch)
     await orch.drain()
     assert published[0]["text"] == "A 101 km/h strike."
-    assert len(fake.calls) == 2
-    assert "the number 115 isn't in the input" in fake.calls[1].prompt
+    calls = narrator_calls(fake)
+    assert len(calls) == 2
+    assert "the number 115 isn't in the input" in calls[1].prompt
 
 
 async def test_two_bad_answers_keep_the_template():
     orch, published, fake = orchestrator([insight("Zlatanovic scores 7.")])
     run_moment(orch)
     await orch.drain()
-    assert published == [] and len(fake.calls) == 2
+    assert published == [] and len(narrator_calls(fake)) == 2
     health = orch.health()["narrator"]
     assert health["verifier_failures"] == 1 and health["fallbacks"] == 1
 
@@ -116,7 +121,7 @@ async def test_invalid_json_then_valid():
     run_moment(orch)
     await orch.drain()
     assert published[0]["text"] == "A save from close range."
-    assert "not valid JSON" in fake.calls[1].prompt
+    assert "not valid JSON" in narrator_calls(fake)[1].prompt
 
 
 async def test_an_error_keeps_the_template():
