@@ -101,15 +101,12 @@ class Square:
     # Server-side only.
     correct_answer: str | None = None
     evidence: list[str] = field(default_factory=list)
+    window: bool = False                       # a window (or a too-early square's mask) runs
     opened_at: float | None = None             # window clock, seconds
     closes_at: float | None = None
     closes_wall_ms: int | None = None          # for the browser's countdown
     open_t: float | None = None                # match t when the window opened
     trigger_event_id: str | None = None
-
-    @property
-    def is_open(self) -> bool:
-        return self.state == "open"
 
     @property
     def announced(self) -> bool:
@@ -121,7 +118,7 @@ class Square:
         return self.state in ("empty_blank", "wildcard")
 
     def view(self) -> dict[str, Any]:
-        silent = self.kind == "first" and self.state == "open"
+        silent = self.kind == "first" and self.state == "open"  # spec 9.4
         return {
             "id": self.id,
             "kind": self.kind,
