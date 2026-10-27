@@ -5,12 +5,13 @@ import contextlib
 import json
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.engine.source import available_seeds
 from app.models import CreateSession, SessionCreated
 from app.session import sessions
 
@@ -36,7 +37,27 @@ async def create_session(body: CreateSession) -> SessionCreated:
         session = sessions.create(seed, body.profile)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"no match for seed {seed}") from None
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
     return SessionCreated(session_id=session.id)
+
+
+@app.get("/api/matches")
+async def matches() -> dict[str, Any]:
+    return {"seeds": available_seeds(), "default": settings.default_seed}
+
+
+@app.get("/api/sessions/{session_id}/state")
+async def session_state(session_id: str) -> dict[str, Any]:
+    session = sessions.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="no such session")
+    return session.state()
+
+
+@app.get("/api/leaderboard")
+async def leaderboard(mode: Literal["normal", "advanced"] = "normal") -> dict[str, Any]:
+    return {"mode": mode, "rows": sessions.leaderboard(mode)}
 
 
 @app.websocket("/ws/sessions/{session_id}")
