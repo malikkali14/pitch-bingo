@@ -572,11 +572,18 @@
       },
       "then": {
         "required": [
-          "last_touch_team_id"
+          "last_touch_team_id",
+          "line"
         ],
         "properties": {
           "last_touch_team_id": {
             "type": "string"
+          },
+          "line": {
+            "enum": [
+              "touch",
+              "end"
+            ]
           }
         }
       }

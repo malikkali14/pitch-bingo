@@ -6,12 +6,14 @@ or before the deadline. Nothing here waits on an LLM.
 """
 
 import time
+from collections import Counter
 from collections.abc import Callable
 from typing import Any
 
 from app.game import ranges
 from app.game.bank import TEMPLATES
 from app.game.card import Board, Profile, Square, build_card
+from app.game.live import LiveProducer, Moment, build_live
 from app.game.resolve import Context, deadline_t, first_answer, matches, resolve_deadline
 from app.game.resolve import evidence as deadline_evidence
 from app.game.scorekeeper import Out, Scorekeeper, WindowClock
@@ -25,7 +27,7 @@ class Game:
     def __init__(self, meta: dict[str, Any], profile: Profile,
                  now: Callable[[], float] = time.monotonic,
                  wall_ms: Callable[[], int] = server_wall_ms,
-                 board: Board | None = None) -> None:
+                 board: Board | None = None, planted: frozenset[int] = frozenset()) -> None:
         self.meta = meta
         self.profile = profile
         self.board = board or build_card(meta, profile)
@@ -38,10 +40,12 @@ class Game:
         self.second_half_t: float | None = None
         self.t = 0.0
         self.full_time = False
+        self.live = LiveProducer(meta["home_team_id"], meta["away_team_id"], planted)
+        self.live_used: Counter[str] = Counter()
 
     # ---- input from the session ----------------------------------------------------------
 
-    def on_event(self, event: dict[str, Any], live: bool = True) -> Out:
+    def on_event(self, event: dict[str, Any], significance: int = 0, live: bool = True) -> Out:
         t = event["t"]
         # A deadline this event steps past opens on the state before the event, so the
         # event itself (later than the deadline second) never counts.
@@ -52,6 +56,9 @@ class Game:
         if event["type"] == "period_start" and event["period"] == 2:
             self.second_half_t = t
         out += self._first_to_happen(event, live)
+        moment = self.live.on_event(event, significance, self.stats)
+        if moment is not None:
+            out += self._add_live(moment, live)
         if event["type"] == "period_end" and event["period"] == 2:
             out += self._full_time()
         return out + self.keeper.tick()
@@ -116,6 +123,24 @@ class Game:
                 elif sq.masks:
                     out.append({"type": "mask.off", "square_id": sq.id, "tags": list(sq.masks)})
         return out
+
+    def _add_live(self, moment: Moment, live: bool) -> Out:
+        spec = build_live(moment, self.profile.mode, self.live_used, self.meta)
+        sq = self._blank_for_live()
+        sq.template, sq.text = spec.template, {"en": spec.text}
+        sq.answer_type, sq.options = "choice", spec.options
+        sq.option_labels = {"en": spec.labels}
+        sq.masks, sq.source_event_ids = spec.masks, spec.source_event_ids
+        sq.resolver, sq.state = f"live_{spec.template}", "waiting"
+        self.live.segment_of[sq.id] = moment.segment
+        out: Out = [{"type": "square.added", "square": sq.view()}]
+        out += self.keeper.open(sq, spec.correct, spec.source_event_ids, self.t, skip=not live)
+        out[0]["square"] = sq.view()
+        return out + self.keeper.board_changed()
+
+    def _blank_for_live(self) -> Square:
+        """The empty blank a new live square lands in (spec 4.7)."""
+        return next(s for s in self.board.squares if s.state == "empty_blank")
 
     # ---- wording -------------------------------------------------------------------------
 

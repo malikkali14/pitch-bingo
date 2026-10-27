@@ -340,6 +340,7 @@ The card builder picks statics from these templates. Normal mode uses the team o
 - Exactly 5 per match, one in each segment: 5–20', 20–38', 38–60', 60–75', 75–88'.
 - The producer opens a live square when a moment's unusualness score passes the threshold (section 7). If a segment reaches 85% of its length with none, the next callable event becomes the live square.
 - The generator also plants one unusual moment per segment (section 6), so the demo match always produces five good ones.
+- A segment whose match file lists a planted moment (summary.json) waits for it, so the demo match's five live squares are its planted moments. Other segments take the first event scoring 60 or more that a live template fits by itself: a shot, a pass of 35 m or more, an advantage, an offside, or a move of 10 or more passes. A score that comes only from a pattern trigger doesn't qualify.
 - Every viewer gets the same five moments. The question differs by mode.
 - The correct answer is computed by code from the source events. The square writer only writes the wording and the wrong options, and the verifier checks that exactly one option is correct.
 
@@ -503,7 +504,7 @@ Every event has these fields:
 | card | card (yellow, second\_yellow, red), foul\_event\_id |
 | offside | none (player\_id is the offside player) |
 | throw\_in, corner, goal\_kick, free\_kick | side or none |
-| out\_of\_play | last\_touch\_team\_id |
+| out\_of\_play | last\_touch\_team\_id, line (touch or end) |
 | substitution | player\_off\_id, player\_on\_id |
 | possession\_change | from\_team\_id, to\_team\_id, cause (tackle, interception, out\_of\_play, foul, shot, keeper) |
 

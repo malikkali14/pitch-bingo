@@ -241,9 +241,10 @@ class Sim:
     def out_of_play(self, last_touch: str, over_end_line: bool, u: float, v: float) -> None:
         """Ball out off `last_touch` at (u, v) in the frame of the club on the ball."""
         self.u, self.v = u, v
-        self.emit("out_of_play", player=None, last_touch_team_id=last_touch)
+        line = "end" if over_end_line and u > LENGTH / 2 else "touch"
+        self.emit("out_of_play", player=None, last_touch_team_id=last_touch, line=line)
         attacking = self.team
-        if over_end_line and u > LENGTH / 2:
+        if line == "end":
             if last_touch == attacking:
                 self.restart("goal_kick", self.other(attacking), 5.5, 34)
             else:
