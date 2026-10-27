@@ -97,14 +97,17 @@ class AgentRunner:
         self.agent = None if clients is None else Agent(
             client=clients.for_tier(spec.tier), name=spec.name, instructions=spec.instructions)
 
-    async def run(self, payload: Any, check: Check[R]) -> Outcome[R]:
-        """`check` turns the model's output into the final value plus verifier errors."""
+    async def run(self, payload: Any, check: Check[R], prompt: str | None = None
+                  ) -> Outcome[R]:
+        """`check` turns the model's output into the final value plus verifier errors.
+        The prompt is "INPUT: " and the payload as JSON, unless one is given."""
         if self.agent is None:
             return self._fallback(Outcome(None, "offline"))
         if not self.breaker.allow():
             return self._fallback(Outcome(None, "breaker"))
-        prompt = "INPUT: " + (payload if isinstance(payload, str) else
-                              json.dumps(payload, ensure_ascii=False, default=str))
+        if prompt is None:
+            prompt = "INPUT: " + (payload if isinstance(payload, str) else
+                                  json.dumps(payload, ensure_ascii=False, default=str))
         started = self.now()
         errors: list[str] = []
         for attempt in (1, 2):

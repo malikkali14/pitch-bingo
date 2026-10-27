@@ -13,7 +13,7 @@ from typing import Any
 from app.game import ranges
 from app.game.bank import TEMPLATES
 from app.game.card import Board, Cell, Profile, Square, build_card
-from app.game.live import LiveProducer, Moment, build_live
+from app.game.live import LiveProducer, LiveSpec, Moment, Wording, build_live
 from app.game.masks import Masks
 from app.game.resolve import Context, deadline_t, first_answer, matches, resolve_deadline
 from app.game.resolve import evidence as deadline_evidence
@@ -39,7 +39,8 @@ class Game:
     def __init__(self, meta: dict[str, Any], profile: Profile,
                  now: Callable[[], float] = time.monotonic,
                  wall_ms: Callable[[], int] = server_wall_ms,
-                 board: Board | None = None, planted: frozenset[int] = frozenset()) -> None:
+                 board: Board | None = None, planted: frozenset[int] = frozenset(),
+                 defer_live: bool = False) -> None:
         self.meta = meta
         self.profile = profile
         self.board = board or build_card(meta, profile)
@@ -54,6 +55,9 @@ class Game:
         self.full_time = False
         self.live = LiveProducer(meta["home_team_id"], meta["away_team_id"], planted)
         self.live_used: Counter[str] = Counter()
+        # With a square writer, a live square waits for its wording before its window opens.
+        self.defer_live = defer_live
+        self.pending_live: dict[str, LiveSpec] = {}
         self.masks = Masks()
         self.accuracy = Accuracy()
         self.strategy_due = False
@@ -200,6 +204,30 @@ class Game:
         sq.masks, sq.source_event_ids = spec.masks, spec.source_event_ids
         sq.resolver, sq.state = f"live_{spec.template}", "waiting"
         self.live.segment_of[sq.id] = moment.segment
+        if not (self.defer_live and live):
+            return self._open_live(sq, spec, live)
+        self.pending_live[sq.id] = spec
+        # Masks go on now, so the call's own feed line is held while the wording is written.
+        out: Out = [{"type": "live.pending", "square_id": sq.id, "template": spec.template,
+                     "mode": self.profile.mode, "text": spec.text, "options": spec.options,
+                     "labels": spec.labels, "correct": spec.correct,
+                     "moment": {"clock": moment.call["clock"], "half": moment.call["period"]}}]
+        if sq.masks:
+            out.append({"type": "mask.on", "square_id": sq.id, "tags": list(sq.masks)})
+        return out
+
+    def open_live(self, square_id: str, wording: Wording | None) -> Out:
+        """Open a deferred live square, with the writer's wording or the template's."""
+        spec = self.pending_live.pop(square_id, None)
+        sq = self.board.get(square_id)
+        if spec is None or sq is None:
+            return []
+        if wording is not None:
+            sq.text = {"en": wording.text}
+            sq.options, sq.option_labels = list(wording.options), {"en": list(wording.labels)}
+        return self._apply(self._open_live(sq, spec, True))
+
+    def _open_live(self, sq: Square, spec: LiveSpec, live: bool) -> Out:
         self.strategy_due = True
         out: Out = [{"type": "square.added", "square": sq.view()}]
         out += self.keeper.open(sq, spec.correct, spec.source_event_ids, self.t, skip=not live)

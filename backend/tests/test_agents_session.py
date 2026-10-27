@@ -66,7 +66,7 @@ def test_failure_switch_falls_back_cleanly(fake: FakeChatClient) -> None:
             ws.send_json({"type": "dev.jump", "t": 618})
             messages = until(ws, lambda m: m["type"] == "event" and m["t"] > 640, 10)
     assert not [m for m in messages if m["type"] == "feed.replace"]
-    assert fake.calls == []
+    assert not [c for c in fake.calls if "explain football moments" in c.instructions]
 
 
 def test_jump_to_a_clock_minute() -> None:
@@ -78,3 +78,26 @@ def test_jump_to_a_clock_minute() -> None:
             event = until(ws, lambda m: m["type"] == "event" and m["t"] > 2700, 10)[-1]["event"]
     # Events within 3 s of the clock still go out after a jump, so 59:5x is fine too.
     assert event["period"] == 2 and event["clock"][:3] in ("59:", "60:")
+
+
+def test_live_squares_get_ai_wording() -> None:
+    draft = json.dumps({"text": "What was the call on that move?",
+                        "options": ["foul", "offside", "advantage", "no_call"],
+                        "labels": ["Foul", "Offside", "Play on", "Nothing"]})
+
+    def reply(call: Any) -> str:
+        return draft if "bingo card" in call.instructions else LINE
+    client_ = FakeChatClient(reply)
+    sessions.clients = lambda: ChatClients(client_, client_, "fake", "fake")
+    try:
+        with TestClient(app) as client:
+            sid = client.post("/api/sessions", json={"seed": 2610}).json()["session_id"]
+            with client.websocket_connect(f"/ws/sessions/{sid}") as ws:
+                play_to(ws, 618)
+                added = until(ws, lambda m: m["type"] == "square.added", 10)[-1]["square"]
+                opened = until(ws, lambda m: m["type"] == "square.window_open", 5)[-1]
+    finally:
+        sessions.clients = lambda: None
+    assert added["text"]["en"] == "What was the call on that move?"
+    assert added["option_labels"]["en"][2] == "Play on"
+    assert opened["square_id"] == added["id"]

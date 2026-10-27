@@ -87,7 +87,8 @@ class MatchSession:
         self._event_times: deque[float] = deque(maxlen=2000)
 
     def _new_game(self) -> None:
-        self.game = Game(self.meta, self.profile, planted=self.planted)
+        self.game = Game(self.meta, self.profile, planted=self.planted,
+                         defer_live=self.agents.online)
         self.fans = FanLeague(self.meta, self.profile.mode, planted=self.planted)
         self._leaderboard_dirty = True
 
@@ -280,6 +281,15 @@ class MatchSession:
     def _wrap(self, msg: dict[str, Any], t: float) -> dict[str, Any]:
         return message(msg["type"], t, **{k: v for k, v in msg.items() if k != "type"})
 
+    def _write_square(self, pending: dict[str, Any]) -> None:
+        game = self.game        # a reset starts a new game; the old square stays closed
+
+        def done(wording: Any) -> None:
+            if game is self.game:
+                self._send(game.open_live(pending["square_id"], wording))
+
+        self.agents.write_square(pending, done)
+
     def _publish(self, msg: dict[str, Any]) -> None:
         """Results from the agents, applied on the event loop like everything else."""
         self._broadcast(self._wrap(msg, self.position))
@@ -287,6 +297,9 @@ class MatchSession:
     def _send(self, out: Out) -> None:
         t = self.game.t
         for msg in out:
+            if msg["type"] == "live.pending":
+                self._write_square(msg)
+                continue
             if msg["type"] in ("square.result", "board.update"):
                 self._leaderboard_dirty = True
             self._broadcast(self._wrap(msg, t))

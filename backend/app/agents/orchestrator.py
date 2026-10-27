@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from app.agents import narrator
+from app.agents import narrator, square_writer
 from app.agents.clients import ChatClients
 from app.agents.messages import Insight
 from app.agents.runner import AgentRunner
@@ -34,7 +34,10 @@ class Orchestrator:
         self.publish = publish
         self.now = now
         self.names = narrator.Names(meta)
-        self.runners = {"narrator": AgentRunner(narrator.SPEC, clients, now)}
+        self.runners = {
+            "narrator": AgentRunner(narrator.SPEC, clients, now),
+            "square_writer": AgentRunner(square_writer.SPEC, clients, now),
+        }
         self.in_flight: dict[str, int] = {name: 0 for name in self.runners}
         self.skipped: dict[str, int] = {name: 0 for name in self.runners}
         self.tasks: set[asyncio.Task[None]] = set()
@@ -72,16 +75,40 @@ class Orchestrator:
                           "text": outcome.value, "ai": True, "clock": event["clock"],
                           "event_type": event["type"], "held": held})
 
+    # ---- live squares (spec 8.4, the moment workflow's second branch) --------------------
+
+    def write_square(self, pending: dict[str, Any],
+                     done: Callable[[square_writer.Wording | None], None]) -> None:
+        """Word a live square, then call done (with None for the template wording)."""
+        if not self.online:
+            done(None)
+            return
+
+        async def write() -> None:
+            wording = None
+            try:
+                outcome = await self.runners["square_writer"].run(
+                    pending, lambda draft: square_writer.check(draft, pending, self.meta),
+                    prompt=square_writer.prompt(pending))
+                wording = outcome.value
+            finally:
+                done(wording)       # the square always opens, worded or not
+
+        self._spawn("square_writer", write(), on_skip=lambda: done(None))
+
     def narrator_down(self, on: bool) -> None:
         """The dev panel's failure switch (spec 3, 8.8)."""
         self.runners["narrator"].breaker.force(on)
 
     # ---- plumbing ------------------------------------------------------------------------
 
-    def _spawn(self, agent: str, work: Coroutine[Any, Any, None]) -> None:
+    def _spawn(self, agent: str, work: Coroutine[Any, Any, None],
+               on_skip: Callable[[], None] | None = None) -> None:
         if self.in_flight[agent] >= MAX_IN_FLIGHT.get(agent, 4):
             self.skipped[agent] += 1
             work.close()
+            if on_skip is not None:
+                on_skip()
             return
         self.in_flight[agent] += 1
 
