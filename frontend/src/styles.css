@@ -267,3 +267,6 @@ button.ghost { background: transparent; color: var(--ink-2); border: 1px solid v
 .dev-table th[scope="row"], .dev-table thead th:first-child { text-align: left; }
 .breaker.open, .breaker.forced { color: var(--bad); font-weight: 700; }
 .breaker.half_open { color: var(--accent); }
+.recap h3 { margin-top: 0.8rem; }
+.recap h4 { margin: 0.6rem 0 0.2rem; font-size: 0.9rem; }
+.recap .ai { font-size: 0.7em; font-weight: 700; color: var(--accent); vertical-align: middle; }

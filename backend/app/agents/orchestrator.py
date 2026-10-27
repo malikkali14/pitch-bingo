@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from app.agents import narrator, square_writer, strategist_reason
+from app.agents import narrator, recap, square_writer, strategist_reason, tutor
 from app.agents.clients import ChatClients
 from app.agents.messages import Insight
 from app.agents.runner import AgentRunner
@@ -38,10 +38,14 @@ class Orchestrator:
             "narrator": AgentRunner(narrator.SPEC, clients, now),
             "square_writer": AgentRunner(square_writer.SPEC, clients, now),
             "strategist": AgentRunner(strategist_reason.SPEC, clients, now),
+            "rules_tutor": AgentRunner(tutor.TUTOR, clients, now),
+            "narrator_context": AgentRunner(tutor.CONTEXT, clients, now),
+            "recap": AgentRunner(recap.SPEC, clients, now),
         }
         self.in_flight: dict[str, int] = {name: 0 for name in self.runners}
         self.skipped: dict[str, int] = {name: 0 for name in self.runners}
         self.tasks: set[asyncio.Task[None]] = set()
+        self.lines: list[tuple[int, str, str]] = []     # (significance, clock, AI line)
 
     @property
     def online(self) -> bool:
@@ -71,6 +75,7 @@ class Orchestrator:
 
         outcome = await self.runners["narrator"].run(moment, check)
         if outcome.value is not None:
+            self.lines.append((moment["significance"], event["clock"], outcome.value))
             # Replaces the template line in place; a held line stays held until revealed.
             self.publish({"type": "feed.replace", "entry_id": event["event_id"],
                           "text": outcome.value, "ai": True, "clock": event["clock"],
@@ -118,6 +123,43 @@ class Orchestrator:
 
         self._spawn("strategist", explain(), on_skip=lambda: done(advice))
 
+    # ---- window close (spec 8.4, window-close workflow) -----------------------------------
+
+    def explain_square(self, square: dict[str, Any]) -> None:
+        """Normal mode: the rules tutor. Advanced mode: the narrator's tactical context. The
+        template explanation is already up; this replaces it if it passes."""
+        if not self.online:
+            return
+        mode = self.profile().mode
+        agent = "rules_tutor" if mode == "normal" else "narrator_context"
+        payload = tutor.build_input(square)
+
+        async def explain() -> None:
+            outcome = await self.runners[agent].run(
+                payload, lambda value: tutor.check(value, payload, self.meta, mode))
+            if outcome.value is not None:
+                self.publish({"type": "square.explanation", "square_id": square["square_id"],
+                              "text": outcome.value, "ai": True})
+
+        self._spawn(agent, explain())
+
+    # ---- recaps (spec 8.4, recap workflow) -----------------------------------------------
+
+    def write_recap(self, summary: recap.Summary) -> None:
+        """The template recap at once, then the recap agent's version if it passes."""
+        fallback = recap.template(summary)
+        self.publish({"type": "recap", **fallback.model_dump()})
+        if not self.online:
+            return
+
+        async def write() -> None:
+            outcome = await self.runners["recap"].run(
+                summary.payload(), lambda content: recap.check(content, summary, self.meta))
+            if outcome.value is not None:
+                self.publish({"type": "recap", **outcome.value.model_dump()})
+
+        self._spawn("recap", write())
+
     def narrator_down(self, on: bool) -> None:
         """The dev panel's failure switch (spec 3, 8.8)."""
         self.runners["narrator"].breaker.force(on)
@@ -154,6 +196,10 @@ class Orchestrator:
     def cancel(self) -> None:
         for task in list(self.tasks):
             task.cancel()
+
+    def top_lines(self, n: int = 3) -> list[str]:
+        best = sorted(self.lines, key=lambda x: -x[0])[:n]
+        return [f"{clock.split(':')[0]}' {text}" for _, clock, text in best]
 
     def health(self) -> dict[str, Any]:
         now = self.now()

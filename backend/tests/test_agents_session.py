@@ -101,3 +101,38 @@ def test_live_squares_get_ai_wording() -> None:
     assert added["text"]["en"] == "What was the call on that move?"
     assert added["option_labels"]["en"][2] == "Play on"
     assert opened["square_id"] == added["id"]
+
+
+def test_half_time_recap_even_offline() -> None:
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions", json={"seed": 2610}).json()["session_id"]
+        with client.websocket_connect(f"/ws/sessions/{sid}") as ws:
+            play_to(ws, 2860)                           # the first half ends at t = 2875.9
+            msg = until(ws, lambda m: m["type"] == "recap", 10)[-1]
+    assert msg["kind"] == "halftime" and msg["ai"] is False
+    assert msg["content"]["headline"].startswith("Half-time: Northbridge")
+    assert len(msg["content"]["talking_points"]) == 3
+
+
+def test_summary_and_explanation_context_from_a_real_match() -> None:
+    from game_helpers import FakeTime
+
+    from app.engine.source import MATCHES_DIR, load_match
+    from app.session import MatchSession
+
+    session = MatchSession(2610, {"club": "NBA"})
+    clock = FakeTime()
+    session.game.keeper.clock._now = clock.now
+    for e in load_match(MATCHES_DIR / "2610").events[:420]:   # into the 17th minute
+        result = session.stats.on_event(e)
+        session.game.on_event(e, result.significance)
+    summary = session._recap_summary("halftime")
+    assert set(summary.score) == {"Northbridge", "Kestrel"}
+    assert summary.goals and summary.goals[0]["club"] == "Northbridge"
+    assert summary.club == "Northbridge" and summary.card["of"] == 21
+    sq = next(s for s in session.game.board.squares if s.deadline_s == 900)
+    clock.advance(25)
+    session.game.on_tick(1000.0)
+    context = session._square_context(sq.id, "template")
+    assert context is not None and context["result"] == "missed"
+    assert context["answer_key"] == sq.correct_answer and context["template"] == sq.template

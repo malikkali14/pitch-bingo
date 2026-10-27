@@ -10,6 +10,7 @@ import type {
   FeedReplaceMessage,
   HealthMessage,
   LeaderboardRow,
+  RecapMessage,
   MatchEvent,
   MatchMeta,
   Profile,
@@ -78,6 +79,7 @@ export interface MatchState {
   announcement: string; // read out by screen readers when an announced window opens
   moments: Moment[];
   health: HealthMessage | null;
+  recaps: Partial<Record<RecapMessage["kind"], RecapMessage>>;
   paused: boolean;
   narratorDown: boolean;
 }
@@ -110,6 +112,7 @@ export const initialState: MatchState = {
   announcement: "",
   moments: [],
   health: null,
+  recaps: {},
   paused: false,
   narratorDown: false,
 };
@@ -205,7 +208,9 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
       return { ...next, pending, answers: { ...state.answers, [msg.square_id]: msg.correct_answer } };
     }
     case "square.explanation":
-      return explain(state, msg.square_id, msg.text);
+      return explain(state, msg.square_id, msg.text, !!msg.ai);
+    case "recap":
+      return onRecap(state, msg);
     case "board.update": {
       const { squares, scored_lines, points, correct, bingos, full_card } = msg;
       return { ...state, board: { squares, scored_lines, points, correct, bingos, full_card } };
@@ -306,19 +311,40 @@ function reveal(state: MatchState, ids: string[]): MatchState {
   return { ...state, held, feed: [...revealed.reverse(), ...state.feed].slice(0, FEED_LIMIT) };
 }
 
-function explain(state: MatchState, squareId: string, text: string): MatchState {
-  const next = updateSquare(state, squareId, {});
-  const entry: FeedEntry = {
+function explain(state: MatchState, squareId: string, text: string, ai: boolean): MatchState {
+  return upsertLine(state, {
     entry_id: `explain:${squareId}`,
     minute: state.anchor ? minuteLabel(state.anchor.clock) : "",
     icon: "💡",
     text,
     tag: t("tag.answer"),
-    ai: false,
+    ai,
     tags: [],
-  };
-  if (state.feed.some((f) => f.entry_id === entry.entry_id)) return next;
-  return { ...next, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+  });
+}
+
+/** Adds a line, or replaces one with the same id in place (an AI version of a template). */
+function upsertLine(state: MatchState, entry: FeedEntry): MatchState {
+  const existing = state.feed.find((f) => f.entry_id === entry.entry_id);
+  if (!existing) return { ...state, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+  if (existing.ai && !entry.ai) return state;          // never downgrade an AI line
+  return { ...state, feed: state.feed.map((f) => (f.entry_id === entry.entry_id ? { ...entry, minute: f.minute } : f)) };
+}
+
+function onRecap(state: MatchState, msg: RecapMessage): MatchState {
+  const current = state.recaps[msg.kind];
+  if (current?.ai && !msg.ai) return state;
+  const next = { ...state, recaps: { ...state.recaps, [msg.kind]: msg } };
+  if (msg.kind !== "halftime") return next;
+  return upsertLine(next, {
+    entry_id: "recap:halftime",
+    minute: state.anchor ? minuteLabel(state.anchor.clock) : "45'",
+    icon: "📋",
+    text: [msg.content.headline, msg.content.paragraphs[0]].filter(Boolean).join(" "),
+    tag: t("tag.recap"),
+    ai: msg.ai,
+    tags: [],
+  });
 }
 
 function onStats(state: MatchState, msg: StatsMessage): MatchState {

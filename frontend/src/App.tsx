@@ -96,6 +96,7 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
       {showFullTime && (
         <FullTime roster={roster} score={state.stats?.score} board={board} moments={state.moments}
           leaderboard={state.leaderboard} total={state.ranked} mode={profile.mode}
+          recap={state.recaps.full_time}
           onClose={() => setFullTimeClosed(true)} />
       )}
     </div>

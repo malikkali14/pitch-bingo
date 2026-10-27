@@ -182,6 +182,24 @@ export interface SquareExplanationMessage extends Envelope {
   type: "square.explanation";
   square_id: string;
   text: string;
+  ai?: boolean; // the rules tutor's or narrator's version, replacing the template one
+}
+
+export interface RecapContent {
+  headline: string;
+  paragraphs: string[];
+  talking_points: string[];
+  club_paragraph: string | null;
+  player_paragraph: string | null;
+  bingo_summary: string | null;
+}
+
+/** Half-time and full-time recaps (spec 8.6, 9.4): a template first, the AI version after. */
+export interface RecapMessage extends Envelope {
+  type: "recap";
+  kind: "halftime" | "full_time" | "catch_up" | "bingo";
+  content: RecapContent;
+  ai: boolean;
 }
 
 export interface BoardUpdateMessage extends Envelope, Board {
@@ -295,6 +313,7 @@ export type ServerMessage =
   | FeedRevealMessage
   | FeedReplaceMessage
   | HealthMessage
+  | RecapMessage
   | ErrorMessage;
 
 export const SPEEDS = [1, 5, 10] as const;

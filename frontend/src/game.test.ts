@@ -209,3 +209,25 @@ describe("AI feed lines", () => {
     expect(state.feed[0]).toMatchObject({ text: "AI line.", ai: true, revealed: true });
   });
 });
+
+describe("explanations and recaps", () => {
+  it("replaces a template explanation with the AI one, never the other way", () => {
+    const base = { type: "square.explanation", t: 0, wall: 0, square_id: "sq_01" } as const;
+    let state = send(ready(), { ...base, text: "Template." }, { ...base, text: "Tutor line.", ai: true });
+    expect(state.feed.map((f) => [f.text, f.ai])).toEqual([["Tutor line.", true]]);
+    state = send(state, { ...base, text: "Template." });
+    expect(state.feed[0].text).toBe("Tutor line.");
+  });
+
+  it("posts the half-time recap to the feed and keeps the full-time one for the screen", () => {
+    const content = { headline: "Half-time: Northbridge 1–0 Kestrel", paragraphs: ["Goals: Arvel."],
+      talking_points: ["a", "b", "c"], club_paragraph: null, player_paragraph: null, bingo_summary: null };
+    let state = send(ready(), { type: "recap", t: 0, wall: 0, kind: "halftime", content, ai: false });
+    expect(state.feed[0]).toMatchObject({ entry_id: "recap:halftime", tag: "Recap",
+      text: "Half-time: Northbridge 1–0 Kestrel Goals: Arvel." });
+    state = send(state, { type: "recap", t: 0, wall: 0, kind: "full_time", content, ai: true });
+    expect(state.recaps.full_time?.ai).toBe(true);
+    state = send(state, { type: "recap", t: 0, wall: 0, kind: "full_time", content, ai: false });
+    expect(state.recaps.full_time?.ai).toBe(true);
+  });
+});

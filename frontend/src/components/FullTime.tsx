@@ -4,7 +4,7 @@
 import { useEffect, useRef } from "react";
 import type { Board } from "../card/types";
 import { t } from "../i18n";
-import type { LeaderboardRow, Mode } from "../protocol";
+import type { LeaderboardRow, Mode, RecapMessage } from "../protocol";
 import type { Roster } from "../roster";
 import type { Moment } from "../state/match";
 
@@ -16,6 +16,7 @@ interface Props {
   leaderboard: LeaderboardRow[];
   total: number;
   mode: Mode;
+  recap?: RecapMessage;
   onClose(): void;
 }
 
@@ -30,7 +31,7 @@ export function cardSummary(board: Board) {
   };
 }
 
-export function FullTime({ roster, score, board, moments, leaderboard, total, mode, onClose }: Props) {
+export function FullTime({ roster, score, board, moments, leaderboard, total, mode, recap, onClose }: Props) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => panel.current?.focus(), []);
   const you = leaderboard.find((r) => r.you);
@@ -43,6 +44,17 @@ export function FullTime({ roster, score, board, moments, leaderboard, total, mo
         <p className="final-score">
           {roster.home.name} {score?.[roster.home.id] ?? 0} – {score?.[roster.away.id] ?? 0} {roster.away.name}
         </p>
+        {recap && (
+          <section className="recap" aria-label={t("fulltime.recap")}>
+            <h3>
+              {recap.content.headline} {recap.ai && <span className="ai">{t("feed.ai")}</span>}
+            </h3>
+            {[...recap.content.paragraphs, recap.content.club_paragraph, recap.content.player_paragraph]
+              .filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}
+            <h4>{t("fulltime.talking_points")}</h4>
+            <ul>{recap.content.talking_points.map((p, i) => <li key={i}>{p}</li>)}</ul>
+          </section>
+        )}
         <h3>{t("fulltime.moments")}</h3>
         <ol className="moments">
           {moments.map((m) => (

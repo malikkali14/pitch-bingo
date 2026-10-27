@@ -169,5 +169,8 @@
   "dev.breaker.closed": "closed",
   "dev.breaker.open": "open",
   "dev.breaker.half_open": "half-open",
-  "dev.breaker.forced": "forced open"
+  "dev.breaker.forced": "forced open",
+  "tag.recap": "Recap",
+  "fulltime.recap": "Recap",
+  "fulltime.talking_points": "Talking points"
 }

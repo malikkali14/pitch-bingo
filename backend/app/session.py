@@ -19,6 +19,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from app.agents import narrator, recap
 from app.agents.clients import ChatClients, shared_clients
 from app.agents.orchestrator import Orchestrator
 from app.config import settings
@@ -211,6 +212,9 @@ class MatchSession:
                         lambda: self.game.redact_stats(self.stats.snapshot()), held,
                         self.stats.core.last_xg if item["type"] == "shot" else None)
                 self._send(out)
+                if live and item["type"] == "period_end":
+                    self.agents.write_recap(self._recap_summary(
+                        "halftime" if item["period"] == 1 else "full_time"))
 
     def _reset(self, rewound: bool = False) -> None:
         """A jump back replays from kickoff with a fresh card (dev panel only)."""
@@ -283,6 +287,65 @@ class MatchSession:
         return message(msg["type"], t, **{k: v for k, v in msg.items()
                                           if k != "type" and not k.startswith("_")})
 
+    def _square_context(self, square_id: str, template_text: str) -> dict[str, Any] | None:
+        """What the rules tutor or narrator gets when a window closes."""
+        sq = self.game.board.get(square_id)
+        if sq is None or sq.result is None:
+            return None
+        names = narrator.Names(self.meta)
+        wanted = set(sq.evidence) | set(sq.source_event_ids)
+        events = [e for e in self.game.events[-400:] if e["event_id"] in wanted][-6:]
+        return {
+            "square_id": sq.id, "question": sq.text.get("en", ""), "kind": sq.kind,
+            "template": sq.template, "answer": self.game.label(sq, sq.correct_answer),
+            "answer_key": sq.correct_answer, "result": sq.result["status"],
+            "clock": self.game.events[-1]["clock"] if self.game.events else "00:00",
+            "events": [narrator.build_moment(e, 0, {}, [], [], names)["event"] | {
+                "clock": e["clock"]} for e in events],
+            "template_text": template_text,
+        }
+
+    def _recap_summary(self, kind: str) -> recap.Summary:
+        """The state summary the recap is written from (spec 8.6), built by code."""
+        names = narrator.Names(self.meta)
+        snapshot = self.game.redact_stats(self.stats.snapshot())
+        clubs = snapshot["clubs"]
+        goals = [{"minute": f"{e['clock'].split(':')[0]}'",
+                  "scorer": names.player(e.get("scorer_id")) or "an own goal",
+                  "club": names.club(e["team_id"])}
+                 for e in self.game.events if e["type"] == "goal"]
+        players = snapshot["players"]
+        standout_id = max(players, key=lambda p: players[p]["touches"], default=None)
+        standout = None
+        if standout_id is not None:
+            best = players[standout_id]
+            standout = {"player": names.player(standout_id), "club": names.club(best["team_id"]),
+                        "touches": best["touches"]}
+        chaos = snapshot["patterns"]["chaos"]
+        patterns = [f"{names.club(chaos['in_control'])} in control"] if chaos.get("in_control") \
+            else []
+        row = next((r for r in leaderboard(self.viewer_row(), self.fans.rows()) if r["you"]), {})
+        focus = self.profile.focus_player_id
+        return recap.Summary(
+            kind=kind,
+            score={names.club(t) or t: n for t, n in snapshot["score"].items()},
+            goals=goals,
+            stats={names.club(t) or t: {k: v for k, v in c.items()
+                                        if k in ("possession", "shots", "shots_on_target", "xg")
+                                        and v is not None}
+                   for t, c in clubs.items()},
+            moments=self.agents.top_lines(),
+            patterns=patterns, standout=standout,
+            card={"points": self.game.board.points, "correct": self.game.board.correct,
+                  "lines": len(self.game.board.scored_lines), "rank": row.get("rank"),
+                  "of": len(self.fans.fans) + 1},
+            club=names.club(self.profile.club),
+            focus=None if focus is None else {
+                "player": names.player(focus),
+                **{k: v for k, v in players.get(focus, {}).items()
+                   if k in ("touches", "passes", "shots") and v is not None}},
+        )
+
     def _write_square(self, pending: dict[str, Any]) -> None:
         game = self.game        # a reset starts a new game; the old square stays closed
 
@@ -311,6 +374,10 @@ class MatchSession:
             if msg["type"] in ("square.result", "board.update"):
                 self._leaderboard_dirty = True
             self._broadcast(self._wrap(msg, t))
+            if msg["type"] == "square.explanation" and self.agents.online:
+                context = self._square_context(msg["square_id"], msg["text"])
+                if context is not None:
+                    self.agents.explain_square(context)
 
     def viewer_row(self) -> dict[str, Any]:
         board = self.game.board
