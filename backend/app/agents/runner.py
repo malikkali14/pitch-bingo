@@ -32,7 +32,7 @@ class AgentSpec:
     tier: Tier
     instructions: str
     output: type[BaseModel]
-    budget_s: float             # time budget and timeout (spec 8.1, 8.8)
+    budget_s: float             # time budget and timeout per attempt (spec 8.1, 8.8)
 
 
 @dataclass

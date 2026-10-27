@@ -19,7 +19,7 @@ moment the viewer just watched. Keep it plain and lively. Never reveal or hint a
 in the question. Use only option keys from the option set, and give every option a short
 label (a few words). Return JSON matching LiveSquareDraft."""
 
-SPEC = AgentSpec("square_writer", "fast", INSTRUCTIONS, LiveSquareDraft, budget_s=1.5)
+SPEC = AgentSpec("square_writer", "fast", INSTRUCTIONS, LiveSquareDraft, budget_s=2.0)
 
 __all__ = ["SPEC", "Wording", "check", "prompt"]
 

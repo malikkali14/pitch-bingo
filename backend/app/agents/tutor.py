@@ -71,8 +71,8 @@ short sentences, say what the moment behind the bingo square in INPUT tells us a
 match: how it came about and what it means. Use only facts and numbers from INPUT. No betting
 language. Return JSON matching the Explanation schema."""
 
-TUTOR = AgentSpec("rules_tutor", "fast", TUTOR_PROMPT, Explanation, budget_s=3.0)
-CONTEXT = AgentSpec("narrator_context", "fast", CONTEXT_PROMPT, Explanation, budget_s=2.0)
+TUTOR = AgentSpec("rules_tutor", "fast", TUTOR_PROMPT, Explanation, budget_s=7.0)
+CONTEXT = AgentSpec("narrator_context", "fast", CONTEXT_PROMPT, Explanation, budget_s=7.0)
 
 
 def rule_for(template: str, answer: str | None) -> str | None:

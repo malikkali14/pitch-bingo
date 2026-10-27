@@ -18,7 +18,7 @@ the suggested move helps them complete a line. Use only facts and numbers from I
 line, what is already correct in it, or what is still to come. Plain words, no betting language.
 Return JSON matching the StrategyReason schema."""
 
-SPEC = AgentSpec("strategist", "fast", PROMPT, StrategyReason, budget_s=2.0)
+SPEC = AgentSpec("strategist", "fast", PROMPT, StrategyReason, budget_s=7.0)
 GOOD = {"correct", "void", "wildcard"}
 
 

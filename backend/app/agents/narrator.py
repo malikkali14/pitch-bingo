@@ -21,7 +21,7 @@ No betting language. Neutral tone.
 Write each fact as one short sentence, under 100 characters. Name at most two players,
 exactly as INPUT spells them. Copy moment_id from INPUT."""
 
-SPEC = AgentSpec("narrator", "fast", PROMPT, Insight, budget_s=2.0)
+SPEC = AgentSpec("narrator", "fast", PROMPT, Insight, budget_s=3.0)
 
 EVENT_FIELDS = ("type", "outcome", "pass_type", "height", "length_m", "ball_speed_kmh",
                 "opponents_bypassed", "shot_type", "body_part", "card", "severity", "advantage",

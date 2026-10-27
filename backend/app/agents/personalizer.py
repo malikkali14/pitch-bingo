@@ -23,7 +23,7 @@ viewer's favorite club or focus player, lead with them, honestly, including bad 
 mock the other club. Never add a number or a name that isn't in INPUT. No betting language.
 Return JSON matching the RenderedLine schema, copying moment_id."""
 
-SPEC = AgentSpec("personalizer", "fast", PROMPT, RenderedLine, budget_s=1.5)
+SPEC = AgentSpec("personalizer", "fast", PROMPT, RenderedLine, budget_s=2.0)
 CACHE_SIZE = 5000
 CACHE: OrderedDict[tuple[str, str, str], str] = OrderedDict()
 
