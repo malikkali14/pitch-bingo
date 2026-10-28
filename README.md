@@ -5,7 +5,7 @@ Pitch Bingo turns a football match into a game you can only win by watching. A s
 Built for the Microsoft x Premier League "Inside the Game" hackathon.
 
 - Live demo: https://pitchbingo.kindsand-e4fe2d42.eastus.azurecontainerapps.io
-- Video: VIDEO_LINK_HERE
+- Video: https://youtu.be/Zp-TcMlpkUo
 
 The live app scales to zero when idle, so the first visit after a quiet spell takes a few seconds to start.
 
@@ -213,10 +213,6 @@ pitch-bingo/
   schemas/                JSON Schemas for matches and events
   docs/                   SPEC.md, schema.md, validation.png
 ```
-
-## Not built yet
-
-The Studio tab and overlay export, the settings drawer, the incident-replay inset, Cosmos DB storage, the focus player's ring and stats card, and changing language mid-match. These are described in `docs/SPEC.md`.
 
 ## Roadmap
 
