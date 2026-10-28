@@ -6,7 +6,9 @@ APPLICATIONINSIGHTS_CONNECTION_STRING (Azure only) sends them to Application Ins
 ENABLE_SENSITIVE_DATA puts prompts and replies on spans: only ever on your own machine.
 """
 
+import json
 import logging
+import sys
 from typing import Any
 
 from opentelemetry import metrics, trace
@@ -34,6 +36,23 @@ def setup(config: Settings = settings) -> bool:
     log.info("telemetry on%s", " (Application Insights)"
              if config.applicationinsights_connection_string else "")
     return True
+
+
+def moment_log() -> logging.Logger:
+    """One JSON line per routed moment on stdout (spec 12.2), which Container Apps collects.
+    It says what ran and whether it was AI or a fallback; never prompts or replies (12.3)."""
+    logger = logging.getLogger("pitch_bingo.moments")
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+    return logger
+
+
+def log_moment(**fields: Any) -> None:
+    moment_log().info(json.dumps({"log": "producer.route", **fields}, default=str))
 
 
 def tracer() -> Any:
