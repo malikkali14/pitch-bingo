@@ -17,6 +17,7 @@ from typing import Any, TypeVar
 from agent_framework import Agent
 from pydantic import BaseModel, ValidationError
 
+from app import telemetry
 from app.agents.breaker import Breaker
 from app.agents.clients import ChatClients, Tier
 
@@ -116,8 +117,10 @@ class AgentRunner:
                                   json.dumps(payload, ensure_ascii=False, default=str))
         started = self.now()
         errors: list[str] = []
+        tags = {"agent": self.spec.name}
         for attempt in (1, 2):
             self.health.record_call(self.now())
+            telemetry.instruments().calls.add(1, tags)
             try:
                 response = await asyncio.wait_for(
                     self.agent.run(prompt if attempt == 1 else retry_prompt(prompt, errors),
@@ -139,9 +142,11 @@ class AgentRunner:
                 latency = (self.now() - started) * 1000
                 self.health.ai += 1
                 self.health.record_latency(latency)
+                telemetry.instruments().latency.record(latency, tags)
                 self.breaker.record(True)
                 return Outcome(value, "ok", [], attempt, latency)
         self.health.verifier_failures += 1
+        telemetry.instruments().verifier_failures.add(1, tags)
         log.info("agent %s fell back after verifier errors: %s", self.spec.name, errors)
         return self._fail(Outcome(None, "verifier", errors, 2))
 
@@ -158,9 +163,14 @@ class AgentRunner:
             return None
 
     def _fail(self, outcome: Outcome[R]) -> Outcome[R]:
+        trips = self.breaker.trips
         self.breaker.record(False)
+        if self.breaker.trips > trips:
+            telemetry.instruments().breaker_trips.add(1, {"agent": self.spec.name})
         return self._fallback(outcome)
 
     def _fallback(self, outcome: Outcome[R]) -> Outcome[R]:
         self.health.fallbacks += 1
+        telemetry.instruments().fallbacks.add(1, {"agent": self.spec.name,
+                                                  "reason": outcome.reason})
         return outcome

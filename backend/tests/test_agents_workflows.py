@@ -12,7 +12,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from test_agents_narrator import STATS, shot_event
 
 from app import telemetry
-from app.agents import workflows
+from app.agents import personalizer, workflows
 from app.agents.clients import ChatClients
 from app.agents.fake import FakeChatClient
 from app.agents.orchestrator import Orchestrator
@@ -36,9 +36,11 @@ def orch(replies: Any = (INSIGHT,)) -> tuple[Orchestrator, list[dict[str, Any]]]
     (workflows.moment_workflow, "moment",
      {"router", "narrator", "verifier", "personalizer", "publisher", "square_writer"}),
     (workflows.window_workflow, "window_close",
-     {"scorekeeper_result", "rules_tutor", "narrator_context", "verifier", "publisher"}),
+     {"scorekeeper_result", "rules_tutor", "narrator_context", "verifier", "personalizer",
+      "publisher"}),
     (workflows.strategy_workflow, "strategy", {"optimizer", "strategist", "publisher"}),
-    (workflows.recap_workflow, "recap", {"state_summary", "recap", "verifier", "publisher"}),
+    (workflows.recap_workflow, "recap",
+     {"state_summary", "recap", "verifier", "personalizer", "publisher"}),
 ])
 def test_each_workflow_is_built_with_workflow_builder(build, name, steps):
     o, _ = orch()
@@ -97,3 +99,29 @@ def test_setup_turns_on_agent_framework_instrumentation(monkeypatch):
     assert telemetry.setup(Settings(enable_instrumentation=True)) is True
     assert calls == [("instrument", {"enable_sensitive_data": False})]
     monkeypatch.setattr(telemetry, "_configured", False)
+
+
+async def test_metrics_for_calls_latency_fallbacks_and_breaker(monkeypatch):
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import InMemoryMetricReader
+
+    reader = InMemoryMetricReader()
+    provider = MeterProvider(metric_readers=[reader])
+    monkeypatch.setattr(telemetry, "_metrics", telemetry.Metrics(provider.get_meter("test")))
+    o, _ = orch([INSIGHT])
+    o.on_event(shot_event(), 72, [], [], lambda: STATS, False)
+    await o.drain()
+    bad, _ = orch([RuntimeError("503")])
+    for _ in range(3):
+        personalizer.CACHE.clear()          # or the first line answers from the cache
+        bad.on_event(shot_event(), 72, [], [], lambda: STATS, False)
+        await bad.drain()
+    names: dict[str, float] = {}
+    for rm in reader.get_metrics_data().resource_metrics:
+        for sm in rm.scope_metrics:
+            for metric in sm.metrics:
+                for point in metric.data.data_points:
+                    names[metric.name] = names.get(metric.name, 0) + getattr(
+                        point, "value", getattr(point, "count", 0))
+    assert names["llm.calls"] >= 4 and names["agent.latency"] >= 1
+    assert names["agent.fallbacks"] >= 3 and names["breaker.trips"] == 1

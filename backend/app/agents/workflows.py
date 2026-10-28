@@ -3,9 +3,9 @@
 1. Moment:       Router -> Narrator -> Verifier -> Personalizer -> Publisher, and for a live
                  square the router's second branch: Square writer -> Verifier -> Publisher.
 2. Window close: Result -> Rules tutor (normal) or Narrator context (advanced) -> Verifier
-                 -> Publisher.
+                 -> Personalizer -> Publisher.
 3. Strategy:     Optimizer -> Strategist reason -> Publisher.
-4. Recap:        State summary -> Recap -> Verifier -> Publisher.
+4. Recap:        State summary -> Recap -> Verifier -> Personalizer -> Publisher.
 
 Agent steps call the shared AgentRunners, so timeouts, the breaker, the one retry with the
 verifier's errors and the fallbacks all apply. The Verifier executor is a last deterministic
@@ -217,6 +217,36 @@ class Personalizer(Step):
         await ctx.send_message(Line(item.job, outcome.value or item.text))
 
 
+class PersonalizeExplanation(Step):
+    """Leads an explanation with the viewer's club or focus player. Neutral viewers pass
+    straight through, with no extra call."""
+
+    @handler
+    async def personalize(self, item: Explained, ctx: WorkflowContext[Explained]) -> None:
+        profile = self.o.profile()
+        if not (profile.club or profile.focus_player_id):
+            await ctx.send_message(item)
+            return
+        insight = Insight(moment_id=item.job.square["square_id"], headline_facts=[item.text],
+                          why_facts=[], tags=[], evidence_ids=[], numbers=[])
+        payload = personalizer.build_input(insight, profile, self.o.names)
+        limit = LIMITS[item.job.mode]
+        outcome = await self.o.runners["personalizer"].run(
+            payload, lambda value: personalizer.check(value, item.job.payload, payload,
+                                                      self.o.meta, item.job.mode),
+            prompt=with_limit(payload, f"Length: the text must be under {limit} characters."))
+        await ctx.send_message(Explained(item.job, outcome.value or item.text))
+
+
+class PersonalizeRecap(Step):
+    """The recap agent already writes the club and focus-player paragraphs. In English this
+    passes through; phase 7 renders other languages here."""
+
+    @handler
+    async def personalize(self, item: Recapped, ctx: WorkflowContext[Recapped]) -> None:
+        await ctx.send_message(item)
+
+
 class Publisher(Step):
     """Writes to the session and so to the viewer's WebSocket (spec 8.4)."""
 
@@ -303,12 +333,14 @@ def window_workflow(o: "Orchestrator") -> Workflow:
     rules = Explainer(o, "rules_tutor", "rules_tutor")
     context = Explainer(o, "narrator_context", "narrator_context")
     verifier, publisher = Verifier(o, "verifier"), Publisher(o, "publisher")
+    personal = PersonalizeExplanation(o, "personalizer")
     return (WorkflowBuilder(name="window_close", start_executor=result)
             .add_edge(result, rules, condition=lambda job: job.mode == "normal")
             .add_edge(result, context, condition=lambda job: job.mode != "normal")
             .add_edge(rules, verifier)
             .add_edge(context, verifier)
-            .add_edge(verifier, publisher)
+            .add_edge(verifier, personal)
+            .add_edge(personal, publisher)
             .build())
 
 
@@ -375,8 +407,10 @@ class Recapper(Step):
 def recap_workflow(o: "Orchestrator") -> Workflow:
     summary, writer = StateSummary(o, "state_summary"), Recapper(o, "recap")
     verifier, publisher = Verifier(o, "verifier"), Publisher(o, "publisher")
+    personal = PersonalizeRecap(o, "personalizer")
     return (WorkflowBuilder(name="recap", start_executor=summary)
             .add_edge(summary, writer)
             .add_edge(writer, verifier)
-            .add_edge(verifier, publisher)
+            .add_edge(verifier, personal)
+            .add_edge(personal, publisher)
             .build())

@@ -19,6 +19,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from app import telemetry
 from app.agents import narrator, recap
 from app.agents.clients import ChatClients, shared_clients
 from app.agents.orchestrator import Orchestrator
@@ -103,12 +104,15 @@ class MatchSession:
         for msg in self._opening():
             queue.put_nowait(msg)
         self._queues.add(queue)
+        telemetry.instruments().sockets.add(1)
         if not self._started.is_set():
             self.clock.start()
             self._started.set()
         return queue
 
     def detach(self, queue: asyncio.Queue[dict[str, Any]]) -> None:
+        if queue in self._queues:
+            telemetry.instruments().sockets.add(-1)
         self._queues.discard(queue)
         self._last_socket = time.monotonic()
 

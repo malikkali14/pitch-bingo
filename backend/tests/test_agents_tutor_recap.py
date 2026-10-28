@@ -53,6 +53,23 @@ async def test_normal_mode_explanations_come_from_the_tutor_on_the_fast_model():
     assert fast.calls[0].prompt.startswith("Length: the text must be under 140 characters")
 
 
+async def test_a_club_fan_gets_the_explanation_through_the_personalizer():
+    tutor_line = f"{SURNAME} was beyond the last defender when the ball was played, so offside."
+    personal = f"Your Northbridge lose this one: {SURNAME} was offside."
+
+    def reply(call: Any) -> str:
+        if "rules tutor" in call.instructions:
+            return json.dumps({"square_id": "bl_1", "text": tutor_line})
+        return json.dumps({"moment_id": "bl_1", "text": personal})
+    fast, quality = FakeChatClient(reply), FakeChatClient(reply)
+    published: list[dict[str, Any]] = []
+    o = Orchestrator(ChatClients(fast, quality, "f", "q"), META,
+                     lambda: Profile(mode="normal", club="NBA"), published.append)
+    o.explain_square(OFFSIDE)
+    await o.drain()
+    assert published[0]["text"] == personal and len(fast.calls) == 2
+
+
 async def test_advanced_mode_explanations_add_tactics_on_the_fast_model():
     line = f"Northbridge went long with a through ball and {SURNAME} timed it badly."
     o, fast, quality, published = orch([json.dumps({"square_id": "bl_1", "text": line})],

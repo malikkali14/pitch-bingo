@@ -758,7 +758,7 @@ Each is an Agent Framework workflow: typed executors joined by edges, with agent
 
 The Publisher is a code executor that writes to the session and pushes WebSocket messages (section 9).
 
-As built: each agent step runs its own call, verifier check and one retry with the error list, then a Verifier executor re-checks the final text as the last gate before the Publisher. The window-close workflow has no personalizer step, since the rules tutor and the narrator's context already write for the viewer's mode. A live square is placed and masked at once, and its window opens when the square writer's wording arrives, within its 2-second budget, or with the template wording.
+As built: each agent step runs its own call, verifier check and one retry with the error list, then a Verifier executor re-checks the final text as the last gate before the Publisher. In the window-close workflow the personalizer leads the explanation with the viewer's club or focus player, and neutral viewers pass straight through; in the recap workflow it passes through in English, since the recap agent already writes the club and player paragraphs, and renders other languages in phase 7. A live square is placed and masked at once, and its window opens when the square writer's wording arrives, within its 2-second budget, or with the template wording.
 
 ### 8.5 Messages between steps
 
@@ -900,6 +900,7 @@ Every message is JSON with type, t (match seconds) and wall (server time in ms).
 | leaderboard | rows for the viewer's mode |
 | overlay | one overlay message (9.5) |
 | recap | kind, content |
+| definition | term, text, ai: a one-line explanation of a tapped stat or call (5.1), stored text first, then the rules tutor's |
 | health | agent status, breaker state, latency |
 
 **Browser to server**
@@ -912,6 +913,7 @@ Every message is JSON with type, t (match seconds) and wall (server time in ms).
 | board.move | from\_cell, to\_cell |
 | strategy.apply | advice\_id |
 | recap.request | kind catch\_up |
+| definition.request | term (a stat or call, for example possession or offside) |
 | dev.narrator\_down | on or off |
 | dev.pause | on or off |
 | dev.jump | t |

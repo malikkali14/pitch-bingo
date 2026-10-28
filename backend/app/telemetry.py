@@ -9,7 +9,7 @@ ENABLE_SENSITIVE_DATA puts prompts and replies on spans: only ever on your own m
 import logging
 from typing import Any
 
-from opentelemetry import trace
+from opentelemetry import metrics, trace
 
 from app.config import Settings, settings
 
@@ -38,3 +38,30 @@ def setup(config: Settings = settings) -> bool:
 
 def tracer() -> Any:
     return trace.get_tracer(TRACER_NAME)
+
+
+class Metrics:
+    """The metrics in spec 12.2. Calls per minute is the rate of llm.calls."""
+
+    def __init__(self, meter: Any) -> None:
+        self.latency = meter.create_histogram(
+            "agent.latency", unit="ms", description="Time to a verified agent reply")
+        self.calls = meter.create_counter("llm.calls", description="LLM calls, retries included")
+        self.verifier_failures = meter.create_counter(
+            "verifier.failures", description="Agent outputs that failed the verifier twice")
+        self.fallbacks = meter.create_counter("agent.fallbacks",
+                                              description="Template used instead of AI")
+        self.breaker_trips = meter.create_counter("breaker.trips",
+                                                  description="Circuit breakers opened")
+        self.sockets = meter.create_up_down_counter("sockets.connected",
+                                                    description="Open viewer WebSockets")
+
+
+_metrics: Metrics | None = None
+
+
+def instruments() -> Metrics:
+    global _metrics
+    if _metrics is None:
+        _metrics = Metrics(metrics.get_meter(TRACER_NAME))
+    return _metrics
