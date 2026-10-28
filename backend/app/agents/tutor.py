@@ -8,7 +8,7 @@ this replaces it only if it passes the verifier.
 
 from typing import Any
 
-from app.agents.messages import Explanation
+from app.agents.messages import Definition, Explanation
 from app.agents.runner import AgentSpec
 from app.verify.verifier import verify_line
 
@@ -49,6 +49,27 @@ RULES = {
     "build_up": "A long passing move pulls defenders out of shape before the final pass or shot.",
 }
 
+# One-line definitions for the stats a viewer can tap (spec 5.1), plus every rule above.
+STAT_DEFINITIONS = {
+    "shots": "Shots count every attempt at goal; on target means it would have gone in without "
+             "the keeper or a last defender.",
+    "corners": "How many corners each side has won.",
+    "fouls": "How many fouls each side has committed.",
+    "cards": "Yellow cards are cautions; a red card, or two yellows, sends a player off.",
+    "momentum": "Momentum shows which side has been creating more danger over the last few "
+                "minutes.",
+    "chaos": "Calm to Chaotic measures how scrappy play is: lots of turnovers and long balls "
+             "read as chaotic, long spells of passing as calm.",
+    "pass_accuracy": "Pass accuracy is the share of passes that reach a team-mate.",
+    "ppda": "Pressure counts the passes a side allows before it wins the ball back; fewer means "
+            "a harder press.",
+    "field_tilt": "Field tilt is each side's share of the touches in the final third: who is "
+                  "pinning whom back.",
+    "tempo": "Tempo is how quickly play is moving: events per minute while the ball is in play.",
+    "top_performer": "The top performer is the player with the most touches so far.",
+}
+DEFINITIONS = {**RULES, **STAT_DEFINITIONS}
+
 TEMPLATE_RULES = {
     "yellow_cards": "yellow_card", "first_booking": "yellow_card", "corners": "corner",
     "first_corner": "corner", "offsides": "offside", "first_offside": "offside",
@@ -71,7 +92,13 @@ short sentences, say what the moment behind the bingo square in INPUT tells us a
 match: how it came about and what it means. Use only facts and numbers from INPUT. No betting
 language. Return JSON matching the Explanation schema."""
 
+DEFINITION_PROMPT = """You are a friendly rules tutor for new football fans. In one sentence,
+explain the football term in INPUT so a newcomer gets it, using the stored definition. Plain
+words, no jargon, no numbers that aren't in INPUT. Return JSON matching the Definition schema,
+copying term from INPUT."""
+
 TUTOR = AgentSpec("rules_tutor", "fast", TUTOR_PROMPT, Explanation, budget_s=7.0)
+DEFINE = AgentSpec("definitions", "fast", DEFINITION_PROMPT, Definition, budget_s=7.0)
 CONTEXT = AgentSpec("narrator_context", "fast", CONTEXT_PROMPT, Explanation, budget_s=7.0)
 
 
@@ -94,6 +121,13 @@ def build_input(square: dict[str, Any]) -> dict[str, Any]:
     if rule:
         payload["rule"] = {"call": rule, "summary": RULES[rule]}
     return payload
+
+
+def check_definition(value: Definition, payload: dict[str, Any], meta: dict[str, Any]
+                     ) -> tuple[str | None, list[str]]:
+    text = value.text.strip()
+    errors = verify_line(text, payload, meta, "normal")
+    return (None, errors) if errors else (text, [])
 
 
 def check(value: Explanation, payload: dict[str, Any], meta: dict[str, Any], mode: str

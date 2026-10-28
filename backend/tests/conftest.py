@@ -17,5 +17,6 @@ import pytest  # noqa: E402
 @pytest.fixture(autouse=True)
 def fresh_line_cache():
     """The personalizer's line cache is process-wide; each test starts empty."""
-    from app.agents import personalizer
+    from app.agents import orchestrator, personalizer
     personalizer.CACHE.clear()
+    orchestrator.DEFINITION_CACHE.clear()

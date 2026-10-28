@@ -231,3 +231,23 @@ describe("explanations and recaps", () => {
     expect(state.recaps.full_time?.ai).toBe(true);
   });
 });
+
+describe("definitions and catch-up", () => {
+  it("shows the stored definition, then the tutor's, only for the term asked", () => {
+    let state = matchReducer(ready(), { kind: "define", term: "ppda" });
+    state = send(state,
+      { type: "definition", t: 0, wall: 0, term: "xg", text: "Other.", ai: false },
+      { type: "definition", t: 0, wall: 0, term: "ppda", text: "Stored.", ai: false },
+      { type: "definition", t: 0, wall: 0, term: "ppda", text: "Tutor.", ai: true },
+      { type: "definition", t: 0, wall: 0, term: "ppda", text: "Stored.", ai: false });
+    expect(state.definition).toEqual({ term: "ppda", text: "Tutor.", ai: true });
+    expect(matchReducer(state, { kind: "define", term: null }).definition).toBeNull();
+  });
+
+  it("posts a catch-up recap to the feed", () => {
+    const content = { headline: "Catch-up: Northbridge 0–0 Kestrel", paragraphs: ["No goals yet."],
+      talking_points: ["a", "b", "c"], club_paragraph: null, player_paragraph: null, bingo_summary: null };
+    const state = send(ready(), { type: "recap", t: 0, wall: 0, kind: "catch_up", content, ai: false });
+    expect(state.feed[0]).toMatchObject({ entry_id: "recap:catch_up", text: "Catch-up: Northbridge 0–0 Kestrel No goals yet." });
+  });
+});

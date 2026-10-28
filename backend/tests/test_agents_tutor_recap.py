@@ -115,3 +115,33 @@ async def test_a_recap_with_an_invented_fact_keeps_the_template():
     o.write_recap(SUMMARY)
     await o.drain()
     assert [m["ai"] for m in published] == [False]
+
+
+async def test_definitions_send_the_stored_line_then_the_tutors_once_for_everyone():
+    from app.agents.orchestrator import DEFINITION_CACHE
+    DEFINITION_CACHE.clear()
+    o, fast, quality, published = orch([json.dumps({"term": "field tilt",
+                                                    "text": "Who is pinning whom back."})])
+    assert o.define("field_tilt")
+    await o.drain()
+    assert [(m["text"], m["ai"]) for m in published] == [
+        (tutor.DEFINITIONS["field_tilt"], False), ("Who is pinning whom back.", True)]
+    assert fast.calls[0].prompt.startswith("Length: the text must be under 140 characters")
+    o2, fast2, _, published2 = orch(["unused"])
+    o2.define("field_tilt")
+    await o2.drain()
+    assert published2 == [{"type": "definition", "term": "field_tilt",
+                           "text": "Who is pinning whom back.", "ai": True}] and not fast2.calls
+    assert not o2.define("nonsense")
+    DEFINITION_CACHE.clear()
+
+
+def test_every_stat_and_rule_has_a_definition():
+    for term in ("possession", "xg", "ppda", "field_tilt", "tempo", "chaos", "momentum", "offside",
+                 "corner", "shots", "cards", "pass_accuracy"):
+        assert tutor.DEFINITIONS[term]
+
+
+def test_catch_up_recap_template():
+    r = recap.template(recap.Summary(kind="catch_up", score={"Northbridge": 0, "Kestrel": 0}))
+    assert r.content.headline == "Catch-up: Northbridge 0–0 Kestrel"

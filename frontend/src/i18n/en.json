@@ -172,5 +172,8 @@
   "dev.breaker.forced": "forced open",
   "tag.recap": "Recap",
   "fulltime.recap": "Recap",
-  "fulltime.talking_points": "Talking points"
+  "fulltime.talking_points": "Talking points",
+  "feed.catch_up": "Catch me up",
+  "metrics.define": "What is {stat}?",
+  "metrics.explain": "What do these mean?"
 }

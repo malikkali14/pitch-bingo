@@ -32,10 +32,12 @@ from app.game.scorekeeper import Out
 from app.models import (
     AnswerSubmit,
     BoardMove,
+    DefinitionRequest,
     DevJump,
     DevNarratorDown,
     DevPause,
     ProfileSet,
+    RecapRequest,
     ReplaySpeed,
     StrategyApply,
     client_message,
@@ -136,6 +138,12 @@ class MatchSession:
             self._send(self.game.move(msg.from_cell, msg.to_cell))
         elif isinstance(msg, StrategyApply):
             self._send(self.game.apply_advice(msg.advice_id))
+        elif isinstance(msg, RecapRequest):
+            self.agents.write_recap(self._recap_summary(msg.kind))
+        elif isinstance(msg, DefinitionRequest):
+            if not self.agents.define(msg.term):
+                self._send([{"type": "error", "request": "definition.request",
+                             "reason": f"no definition for {msg.term!r}"}])
         elif isinstance(msg, ProfileSet):
             changes = {k: v for k, v in msg.model_dump(exclude={"type"}).items() if v is not None}
             self.profile = dataclasses.replace(self.profile, **changes)

@@ -9,7 +9,7 @@ import pytest
 from app.agents import narrator, personalizer, recap, square_writer, strategist_reason, tutor
 
 SPECS = [narrator.SPEC, personalizer.SPEC, square_writer.SPEC, strategist_reason.SPEC,
-         tutor.TUTOR, tutor.CONTEXT, recap.SPEC]
+         tutor.TUTOR, tutor.CONTEXT, tutor.DEFINE, recap.SPEC]
 
 
 def objects(schema: dict[str, Any]) -> list[dict[str, Any]]:

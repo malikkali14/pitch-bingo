@@ -136,3 +136,20 @@ def test_summary_and_explanation_context_from_a_real_match() -> None:
     context = session._square_context(sq.id, "template")
     assert context is not None and context["result"] == "missed"
     assert context["answer_key"] == sq.correct_answer and context["template"] == sq.template
+
+
+def test_catch_up_recap_and_definitions_round_trip() -> None:
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions", json={"seed": 2610}).json()["session_id"]
+        with client.websocket_connect(f"/ws/sessions/{sid}") as ws:
+            until(ws, lambda m: m["type"] == "leaderboard")
+            ws.send_json({"type": "recap.request", "kind": "catch_up"})
+            recap_msg = until(ws, lambda m: m["type"] == "recap")[-1]
+            ws.send_json({"type": "definition.request", "term": "possession"})
+            definition = until(ws, lambda m: m["type"] == "definition")[-1]
+            ws.send_json({"type": "definition.request", "term": "nonsense"})
+            error = until(ws, lambda m: m["type"] == "error")[-1]
+    assert recap_msg["kind"] == "catch_up"
+    assert recap_msg["content"]["headline"].startswith("Catch-up")
+    assert definition["term"] == "possession" and definition["ai"] is False
+    assert error["request"] == "definition.request"

@@ -22,7 +22,7 @@ card. No betting language. Return JSON matching the RecapContent schema."""
 
 SPEC = AgentSpec("recap", "quality", PROMPT, RecapContent, budget_s=20.0)
 PARAGRAPH_LIMIT = 400
-LABELS = {"halftime": "Half-time", "full_time": "Full time"}
+LABELS = {"halftime": "Half-time", "full_time": "Full time", "catch_up": "Catch-up"}
 
 
 @dataclass

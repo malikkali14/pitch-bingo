@@ -80,6 +80,7 @@ export interface MatchState {
   moments: Moment[];
   health: HealthMessage | null;
   recaps: Partial<Record<RecapMessage["kind"], RecapMessage>>;
+  definition: { term: string; text: string; ai: boolean } | null;
   paused: boolean;
   narratorDown: boolean;
 }
@@ -113,6 +114,7 @@ export const initialState: MatchState = {
   moments: [],
   health: null,
   recaps: {},
+  definition: null,
   paused: false,
   narratorDown: false,
 };
@@ -123,7 +125,8 @@ export type Action =
   | { kind: "speed"; speed: Speed }
   | { kind: "answer"; squareId: string; value: string }
   | { kind: "moved" }
-  | { kind: "dev"; paused?: boolean; narratorDown?: boolean };
+  | { kind: "dev"; paused?: boolean; narratorDown?: boolean }
+  | { kind: "define"; term: string | null };
 
 export function matchReducer(state: MatchState, action: Action): MatchState {
   switch (action.kind) {
@@ -135,6 +138,9 @@ export function matchReducer(state: MatchState, action: Action): MatchState {
       return { ...state, pending: { ...state.pending, [action.squareId]: action.value } };
     case "moved":
       return { ...state, advice: null };
+    case "define":
+      return { ...state, definition: action.term === null ? null
+        : { term: action.term, text: "", ai: false } };
     case "dev":
       return { ...state, paused: action.paused ?? state.paused,
         narratorDown: action.narratorDown ?? state.narratorDown };
@@ -211,6 +217,10 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
       return explain(state, msg.square_id, msg.text, !!msg.ai);
     case "recap":
       return onRecap(state, msg);
+    case "definition":
+      // Only the term the viewer asked about; never let a stored line replace the tutor's.
+      if (state.definition?.term !== msg.term || (state.definition.ai && !msg.ai)) return state;
+      return { ...state, definition: { term: msg.term, text: msg.text, ai: msg.ai } };
     case "board.update": {
       const { squares, scored_lines, points, correct, bingos, full_card } = msg;
       return { ...state, board: { squares, scored_lines, points, correct, bingos, full_card } };
@@ -335,9 +345,9 @@ function onRecap(state: MatchState, msg: RecapMessage): MatchState {
   const current = state.recaps[msg.kind];
   if (current?.ai && !msg.ai) return state;
   const next = { ...state, recaps: { ...state.recaps, [msg.kind]: msg } };
-  if (msg.kind !== "halftime") return next;
+  if (msg.kind !== "halftime" && msg.kind !== "catch_up") return next;
   return upsertLine(next, {
-    entry_id: "recap:halftime",
+    entry_id: `recap:${msg.kind}`,
     minute: state.anchor ? minuteLabel(state.anchor.clock) : "45'",
     icon: "📋",
     text: [msg.content.headline, msg.content.paragraphs[0]].filter(Boolean).join(" "),

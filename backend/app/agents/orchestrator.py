@@ -24,13 +24,14 @@ from app.agents import (
     workflows,
 )
 from app.agents.clients import ChatClients
-from app.agents.runner import AgentRunner
+from app.agents.runner import AgentRunner, with_limit
 from app.game.card import Profile
 from app.game.live import Wording
 
 log = logging.getLogger(__name__)
 
 Publish = Callable[[dict[str, Any]], None]
+DEFINITION_CACHE: dict[str, str] = {}      # term -> the tutor's line; the same for everyone
 MAX_IN_FLIGHT = {"narrator": 3}   # past this, a moment keeps its template line
 
 
@@ -65,6 +66,7 @@ class Orchestrator:
             "rules_tutor": AgentRunner(tutor.TUTOR, clients, now),
             "narrator_context": AgentRunner(tutor.CONTEXT, clients, now),
             "recap": AgentRunner(recap.SPEC, clients, now),
+            "definitions": AgentRunner(tutor.DEFINE, clients, now),
         }
         self.in_flight: dict[str, int] = {name: 0 for name in self.runners}
         self.skipped: dict[str, int] = {name: 0 for name in self.runners}
@@ -171,6 +173,38 @@ class Orchestrator:
             after = self.runners[agent].health.verifier_failures if agent in self.runners else 0
             span.set_attribute("fallback_used", not outputs)
             span.set_attribute("verifier_errors", after - before)
+
+    # ---- definitions (spec 5.1) -------------------------------------------------------
+
+    def define(self, term: str) -> bool:
+        """The stored definition at once; the rules tutor's version after, cached for every
+        viewer. False for an unknown term."""
+        stored = tutor.DEFINITIONS.get(term)
+        if stored is None:
+            return False
+        cached = DEFINITION_CACHE.get(term)
+        self.publish({"type": "definition", "term": term, "text": cached or stored,
+                      "ai": cached is not None})
+        if cached is not None or not self.online:
+            return True
+        payload = {"term": term.replace("_", " "), "stored_definition": stored}
+
+        async def explain() -> None:
+            with telemetry.tracer().start_as_current_span("producer.route") as span:
+                span.set_attribute("session_id", self.session_id)
+                span.set_attribute("agent", "definitions")
+                span.set_attribute("term", term)
+                outcome = await self.runners["definitions"].run(
+                    payload, lambda v: tutor.check_definition(v, payload, self.meta),
+                    prompt=with_limit(payload, "Length: the text must be under 140 characters."))
+                span.set_attribute("fallback_used", outcome.value is None)
+            if outcome.value is not None:
+                DEFINITION_CACHE[term] = outcome.value
+                self.publish({"type": "definition", "term": term, "text": outcome.value,
+                              "ai": True})
+
+        self._spawn("definitions", explain())
+        return True
 
     def narrator_down(self, on: bool) -> None:
         """The dev panel's failure switch (spec 3, 8.8)."""

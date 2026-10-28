@@ -270,3 +270,10 @@ button.ghost { background: transparent; color: var(--ink-2); border: 1px solid v
 .recap h3 { margin-top: 0.8rem; }
 .recap h4 { margin: 0.6rem 0 0.2rem; font-size: 0.9rem; }
 .recap .ai { font-size: 0.7em; font-weight: 700; color: var(--accent); vertical-align: middle; }
+button.term { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: help;
+  text-decoration: underline dotted; text-underline-offset: 3px; }
+.terms { margin: 0 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.6rem; color: var(--muted); }
+.definition { display: flex; justify-content: space-between; align-items: start; gap: 0.6rem;
+  background: #f4f6f8; border-radius: 8px; padding: 0.5rem 0.7rem; margin-bottom: 0.7rem; }
+.definition p { margin: 0; }
+.definition .ai { font-size: 0.75em; font-weight: 700; color: var(--accent); }

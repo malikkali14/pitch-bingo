@@ -59,6 +59,20 @@ class StrategyApply(BaseModel):
     advice_id: str
 
 
+class RecapRequest(BaseModel):
+    """A catch-up recap on demand (spec 3, 9.4)."""
+
+    type: Literal["recap.request"]
+    kind: Literal["catch_up"] = "catch_up"
+
+
+class DefinitionRequest(BaseModel):
+    """Tap a stat or cue for a one-line explanation (spec 5.1). Not in 9.4's list: added."""
+
+    type: Literal["definition.request"]
+    term: str = Field(max_length=40)
+
+
 class ProfileSet(BaseModel):
     """Profile fields. The card is built before kickoff, so mid-match only the strategist
     setting, handle and language change; mode, club and focus player stay as built."""
@@ -71,7 +85,7 @@ class ProfileSet(BaseModel):
 
 
 Client = (ReplaySpeed | DevPause | DevJump | DevNarratorDown | AnswerSubmit | BoardMove
-          | StrategyApply | ProfileSet)
+          | StrategyApply | ProfileSet | RecapRequest | DefinitionRequest)
 ClientMessage = Annotated[Client, Field(discriminator="type")]
 client_message: TypeAdapter[Client] = TypeAdapter(ClientMessage)
 

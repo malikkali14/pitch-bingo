@@ -28,7 +28,7 @@ export default function App() {
 }
 
 function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
-  const { state, frames, setSpeed, answer, move, applyAdvice, dev } = session;
+  const { state, frames, setSpeed, answer, move, applyAdvice, catchUp, define, dev } = session;
   const [devOpen, setDevOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("normal");
   const [selected, setSelected] = useState<string | null>(null);
@@ -82,10 +82,11 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
           <Pitch roster={roster} frames={frames} cues={state.cues}
             cards={masked.has("cards") ? {} : state.cards} ball={state.ball} reducedMotion={reducedMotion}
             onPick={picking && square ? (id) => answer(square.id, id) : undefined} />
-          <Feed entries={state.feed} masked={masked} />
+          <Feed entries={state.feed} masked={masked} onCatchUp={catchUp} />
         </div>
         <div className="right">
-          <Metrics roster={roster} stats={state.stats} xg={state.xg} mode={mode} />
+          <Metrics roster={roster} stats={state.stats} xg={state.xg} mode={mode}
+            definition={state.definition} onDefine={define} />
           <Card board={board} roster={roster} language={language} pending={state.pending}
             answers={state.answers} advice={state.advice} selected={selected} onSelect={setSelected}
             onAnswer={answer} onMove={move} />

@@ -51,6 +51,13 @@ class Explanation(BaseModel):
     text: str
 
 
+class Definition(BaseModel):
+    """A one-line definition for a tapped stat or cue (spec 5.1)."""
+
+    term: str
+    text: str
+
+
 class StrategyReason(BaseModel):
     reason: str = Field(description="One line, under 120 characters.")
 

@@ -289,6 +289,14 @@ export interface HealthMessage extends Envelope {
   events_per_minute: number;
 }
 
+/** A one-line explanation of a stat or call (spec 5.1): stored first, the tutor's after. */
+export interface DefinitionMessage extends Envelope {
+  type: "definition";
+  term: string;
+  text: string;
+  ai: boolean;
+}
+
 export interface ErrorMessage extends Envelope {
   type: "error";
   request: string;
@@ -314,6 +322,7 @@ export type ServerMessage =
   | FeedReplaceMessage
   | HealthMessage
   | RecapMessage
+  | DefinitionMessage
   | ErrorMessage;
 
 export const SPEEDS = [1, 5, 10] as const;
@@ -327,4 +336,6 @@ export type ClientMessage =
   | { type: "profile.set"; strategist?: StrategistSetting; handle?: string; language?: string }
   | { type: "dev.pause"; on: boolean }
   | { type: "dev.jump"; t?: number; minute?: number }
-  | { type: "dev.narrator_down"; on: boolean };
+  | { type: "dev.narrator_down"; on: boolean }
+  | { type: "recap.request"; kind: "catch_up" }
+  | { type: "definition.request"; term: string };
