@@ -74,7 +74,7 @@ class Orchestrator:
         self.skipped: dict[str, int] = {name: 0 for name in self.runners}
         self.tasks: set[asyncio.Task[None]] = set()
         self.lines: list[tuple[int, str, str]] = []     # (significance, clock, AI line)
-        self.focus_said_at: float | None = None
+        self.focus_said_at = 0.0       # the first focus line comes at 10', not at kickoff
 
     @property
     def online(self) -> bool:
@@ -125,8 +125,7 @@ class Orchestrator:
                      stats: Callable[[], dict[str, Any]]) -> None:
         """A line about the focus player at least every 10 match minutes (spec 5.3)."""
         focus = self.profile().focus_player_id
-        if focus is None or (self.focus_said_at is not None and
-                             t - self.focus_said_at < FOCUS_EVERY_S):
+        if focus is None or t - self.focus_said_at < FOCUS_EVERY_S:
             return
         self.focus_said_at = t
         player = stats().get("players", {}).get(focus, {})

@@ -309,11 +309,14 @@ class MatchSession:
         sq = self.game.board.get(square_id)
         if sq is None or sq.result is None:
             return None
+        if sq.opened_at is not None and sq.closes_at == sq.opened_at:
+            return None     # jumped over (dev panel): nobody saw it, the template will do
         names = narrator.Names(self.meta)
         wanted = set(sq.evidence) | set(sq.source_event_ids)
         events = [e for e in self.game.events[-400:] if e["event_id"] in wanted][-6:]
         return {
-            "square_id": sq.id, "question": sq.text.get("en", ""), "kind": sq.kind,
+            "square_id": sq.id, "kind": sq.kind,
+            "question": sq.text.get(self.profile.language) or sq.text.get("en", ""),
             "template": sq.template, "answer": self.game.label(sq, sq.correct_answer),
             "answer_key": sq.correct_answer, "result": sq.result["status"],
             "clock": self.game.events[-1]["clock"] if self.game.events else "00:00",

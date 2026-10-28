@@ -222,10 +222,10 @@ async def test_focus_player_gets_a_line_every_ten_match_minutes():
     orch = Orchestrator(None, META, lambda: Profile(focus_player_id=STRIKER["id"],
                                                     language="fr"), published.append)
     stats = {"players": {STRIKER["id"]: {"touches": 12, "passes": 8, "shots": 1}}}
-    for minute in (3, 9, 13, 22, 24):
+    for minute in (0, 3, 9, 10, 15, 21, 24):
         orch.focus_update(minute * 60.0, f"{minute:02d}:00", 1, lambda: stats)
     lines = [m for m in published if m["entry_id"].startswith("focus:")]
-    assert [m["clock"] for m in lines] == ["03:00", "13:00", "24:00"]
+    assert [m["clock"] for m in lines] == ["10:00", "21:00"]          # none at kickoff
     assert lines[0]["text"] == (f"{STRIKER['full_name']} jusqu'ici : 12 ballons touchés, "
                                 "8 passes, 1 tirs.")
     assert lines[0]["ai"] is False
