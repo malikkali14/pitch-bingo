@@ -96,7 +96,7 @@ describe("Card interaction", () => {
   it("selects a square to answer it", () => {
     const onSelect = vi.fn();
     render(<Card board={mockBoard} roster={roster} onSelect={onSelect} onMove={() => {}} />);
-    fireEvent.click(screen.getByLabelText(/Who is first caught offside\?/).parentElement!);
+    fireEvent.click(screen.getByLabelText(/Who is first caught offside\?/));
     expect(onSelect).toHaveBeenCalledWith("sq_09");
   });
 
@@ -221,5 +221,13 @@ describe("DevPanel", () => {
     expect(row.textContent).toContain("forced open");
     expect(row.textContent).toContain("1640 ms");
     expect(screen.getByText("7 LLM calls/min · 120 events/min")).toBeTruthy();
+  });
+});
+
+describe("Card accessibility", () => {
+  it("names each cell on the gridcell itself", () => {
+    render(<Card board={mockBoard} roster={roster} />);
+    const cell = screen.getByLabelText(/Who is first caught offside\?/);
+    expect(cell.getAttribute("role")).toBe("gridcell");
   });
 });

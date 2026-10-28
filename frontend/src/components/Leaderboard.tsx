@@ -1,6 +1,6 @@
 // Leaderboard (spec 3): the top five plus your row, against simulated fans in your mode.
 
-import { t } from "../i18n";
+import { getLanguage, t } from "../i18n";
 import type { LeaderboardRow, Mode } from "../protocol";
 
 export function Leaderboard({ rows, mode }: { rows: LeaderboardRow[]; mode: Mode }) {
@@ -31,7 +31,7 @@ export function Leaderboard({ rows, mode }: { rows: LeaderboardRow[]; mode: Mode
                   {row.handle}{" "}
                   {row.you && row.handle !== "You" && <span className="muted">{t("leaderboard.you")}</span>}
                 </th>
-                <td>{row.points.toLocaleString("en")}</td>
+                <td>{row.points.toLocaleString(getLanguage())}</td>
                 <td>{row.correct}</td>
                 <td>{row.avg_answer_s === null ? "–" : `${row.avg_answer_s.toFixed(1)} s`}</td>
               </tr>

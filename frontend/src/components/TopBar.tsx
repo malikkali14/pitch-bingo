@@ -19,6 +19,9 @@ interface Props {
   onMode(mode: Mode): void;
   devOpen?: boolean;
   onDev?(): void;
+  /** Surname of the fan's focus player, shown as a profile chip. */
+  following?: string;
+  language?: string;
 }
 
 export function halfLabel(anchor: ClockAnchor | null, fullTime: boolean): string {
@@ -38,7 +41,7 @@ function MatchClock({ anchor, fullTime, frames }: Pick<Props, "anchor" | "fullTi
 }
 
 export function TopBar(props: Props) {
-  const { roster, score, anchor, fullTime, frames, speed, onSpeed, mode, onMode, devOpen, onDev } = props;
+  const { roster, score, anchor, fullTime, frames, speed, onSpeed, mode, onMode, devOpen, onDev, following, language } = props;
   const home = score?.[roster.home.id] ?? 0;
   const away = score?.[roster.away.id] ?? 0;
   return (
@@ -64,6 +67,10 @@ export function TopBar(props: Props) {
         <span className="half">{halfLabel(anchor, fullTime)}</span>
       </div>
       <div className="controls">
+        <p className="chip" aria-label={t("top.profile")}>
+          {following && <span>{t("top.following", { player: following })} · </span>}
+          {t(`top.mode.${mode}`)}{language ? ` · ${language.toUpperCase()}` : ""}
+        </p>
         <div className="segmented" role="group" aria-label={t("top.speed")}>
           {SPEEDS.map((s) => (
             <button key={s} type="button" aria-pressed={speed === s} onClick={() => onSpeed(s)}>

@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import type { Board } from "../card/types";
-import { t } from "../i18n";
+import { getLanguage, t } from "../i18n";
 import type { LeaderboardRow, Mode, RecapMessage } from "../protocol";
 import type { Roster } from "../roster";
 import type { Moment } from "../state/match";
@@ -64,7 +64,7 @@ export function FullTime({ roster, score, board, moments, leaderboard, total, mo
           ))}
         </ol>
         <h3>{t("fulltime.card")}</h3>
-        <p>{t("fulltime.summary", { ...summary, points: summary.points.toLocaleString("en") })}</p>
+        <p>{t("fulltime.summary", { ...summary, points: summary.points.toLocaleString(getLanguage()) })}</p>
         {you && <p>{t("fulltime.rank", { rank: you.rank, total, mode: t(`top.mode.${mode}`) })}</p>}
         <p className="muted small">{t("fulltime.merch")}</p>
         <button type="button" className="primary" onClick={onClose}>{t("fulltime.keep")}</button>

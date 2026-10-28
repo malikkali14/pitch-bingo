@@ -6,7 +6,7 @@ import { useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { announcedOpen, canMove, canPickUp } from "../card/rules";
 import { deadlineLabel, isLocked, type Board, type Cell, type Square } from "../card/types";
 import { useNow } from "../hooks";
-import { t } from "../i18n";
+import { getLanguage, t } from "../i18n";
 import type { StrategyAdviceMessage } from "../protocol";
 import type { Roster } from "../roster";
 import { AnswerPopover } from "./AnswerPopover";
@@ -114,7 +114,7 @@ export function Card(props: Props) {
       <div className="card-header">
         <h2 id="card-title">{t("card.title")}</h2>
         <dl className="card-totals">
-          <div><dt>{t("card.points")}</dt><dd>{board.points.toLocaleString("en")}</dd></div>
+          <div><dt>{t("card.points")}</dt><dd>{board.points.toLocaleString(getLanguage())}</dd></div>
           <div><dt>{t("card.correct")}</dt><dd>{board.correct}</dd></div>
           <div><dt>{t("card.lines")}</dt><dd>{board.scored_lines.length}</dd></div>
           <div><dt>{t("card.bingos")}</dt><dd>{board.bingos}</dd></div>
@@ -138,7 +138,9 @@ export function Card(props: Props) {
                 <div key={col} role="gridcell" tabIndex={index === focus ? 0 : -1}
                   ref={(el) => (cells.current[index] = el)} onFocus={() => setFocus(index)}
                   className={cls} onClick={() => square && activate(square)}
-                  aria-selected={square?.id === selected} {...(square ? drag(square) : {})}>
+                  aria-selected={square?.id === selected}
+                  aria-label={square ? squareLabel(square, isLocked(square, board), language, now) : undefined}
+                  {...(square ? drag(square) : {})}>
                   {square && (
                     <SquareView square={square} locked={isLocked(square, board)} language={language}
                       now={now} pending={pending[square.id] !== undefined} />
@@ -187,11 +189,11 @@ function SquareView({ square, locked, language, now, pending }: SquareProps) {
   const label = squareLabel(square, locked, language, now);
   const cls = `square ${square.state}${locked ? " locked" : ""}`;
   if (square.state === "empty_blank") {
-    return <div className={cls} aria-label={label} title={label} />;
+    return <div className={cls} title={label} />;
   }
   const points = square.result?.points ?? 0;
   return (
-    <div className={cls} aria-label={label} title={label}>
+    <div className={cls} title={label}>
       <div className="square-top" aria-hidden="true">
         <span className="kind">{KIND_ICON[square.kind]}</span>
         {square.kind === "deadline" && square.deadline_s !== null && (
