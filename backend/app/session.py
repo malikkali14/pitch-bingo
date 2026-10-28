@@ -301,6 +301,7 @@ class MatchSession:
             "template": sq.template, "answer": self.game.label(sq, sq.correct_answer),
             "answer_key": sq.correct_answer, "result": sq.result["status"],
             "clock": self.game.events[-1]["clock"] if self.game.events else "00:00",
+            "half": self.game.events[-1]["period"] if self.game.events else 1,
             "events": [narrator.build_moment(e, 0, {}, [], [], names)["event"] | {
                 "clock": e["clock"]} for e in events],
             "template_text": template_text,

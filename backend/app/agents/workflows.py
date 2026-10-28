@@ -37,6 +37,7 @@ class MomentJob:
     moment: dict[str, Any]
     held: bool
     key: tuple[str, str, str]
+    recent: list[str] = field(default_factory=list)   # the last few lines, not to repeat
 
 
 @dataclass
@@ -142,6 +143,10 @@ class Narrator(Step):
 
         rule = (f"Length: headline_facts[0] must be under {limit} characters, and "
                 f"headline_facts[0] plus why_facts[0] together should be under {limit} too.")
+        if job.recent:
+            # Outside INPUT, so the old lines' numbers never count as facts for this one.
+            rule += "\nRecent lines (don't repeat their points):\n" + "\n".join(
+                f"- {line}" for line in job.recent)
         outcome = await self.o.runners["narrator"].run(job.moment, check,
                                                          prompt=with_limit(job.moment, rule))
         if outcome.value is None:

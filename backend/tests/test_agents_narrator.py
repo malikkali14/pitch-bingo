@@ -105,6 +105,16 @@ async def test_a_valid_insight_replaces_the_template_line():
     assert orch.health()["narrator"]["ai"] == 1
 
 
+async def test_the_narrator_sees_its_recent_lines_outside_input():
+    orch, published, fake = orchestrator([insight("A save from close range.")])
+    orch.lines = [(70, "05:00", "Northbridge have 76% of the ball.")]
+    run_moment(orch)
+    await orch.drain()
+    prompt = narrator_calls(fake)[0].prompt
+    rules, _, payload = prompt.partition("\nINPUT: ")
+    assert "Northbridge have 76% of the ball." in rules and "76%" not in payload
+
+
 async def test_an_invented_number_is_retried_with_the_errors():
     orch, published, fake = orchestrator([insight("A 115 km/h strike."),
                                           insight("A 101 km/h strike.")])

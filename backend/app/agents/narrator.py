@@ -19,7 +19,10 @@ headline_facts: what happened. why_facts: why it matters right now,
 using the pattern data (control vs. chaos, pressure, rhythm, momentum).
 No betting language. Neutral tone.
 Write each fact as one short sentence, under 100 characters. Name at most two players,
-exactly as INPUT spells them. Copy moment_id from INPUT."""
+exactly as INPUT spells them. Copy moment_id from INPUT.
+Lead with what happened in this event. Bring in match stats such as possession only when they
+explain this moment, and never repeat a point from the recent lines you are shown. Mention
+timing (early, half-time, late) only if the clock in INPUT supports it."""
 
 SPEC = AgentSpec("narrator", "fast", PROMPT, Insight, budget_s=3.0)
 

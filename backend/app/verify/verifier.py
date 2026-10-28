@@ -5,6 +5,7 @@ minutes match exactly, percentages to 1 point, decimals under 1 (xG) to 0.01, an
 measures (speeds, distances) to 0.5. "0.15" and "0,15" read the same.
 Names: every player or club named must be in the match metadata and in the input, and a
 capitalised word that isn't a known name or an ordinary word counts as an invented name.
+Timing: words like "half-time", "late on" or "early" must fit the moment's clock.
 Plus length limits by mode and a blocklist of betting words.
 """
 
@@ -35,6 +36,19 @@ ORDINARY = {
     "le", "la", "les", "un", "une", "des", "du", "de", "et", "il", "elle", "ils", "quel",
     "quelle", "encore", "toujours", "après", "avant", "puis", "mais", "carton",
 }
+
+
+# Time words, and the clock minutes (and half) where they make sense.
+TIMING = [
+    (re.compile(r"\b(half[- ]?time|interval|(before|towards?|near|close to) the break)\b",
+                re.IGNORECASE), lambda minute, half, added: half == 1 and (minute >= 40 or added)),
+    (re.compile(r"\b(late on|late in the (game|match)|dying (minutes|moments)"
+                r"|closing (stages|minutes)|final whistle|stoppage time|added time|injury time"
+                r"|full[- ]?time)\b",
+                re.IGNORECASE), lambda minute, half, added: minute >= 80 or added),
+    (re.compile(r"\b(early|opening (minutes|exchanges|stages))\b", re.IGNORECASE),
+     lambda minute, half, added: half == 1 and minute <= 25),
+]
 
 
 @dataclass(frozen=True)
@@ -120,6 +134,33 @@ def _name_errors(text: str, source_text: str, meta: dict[str, Any]) -> list[str]
     return errors
 
 
+def _clock_of(source: Any) -> tuple[str, int] | None:
+    """The moment's clock and half, from the source or a nested moment."""
+    if not isinstance(source, dict):
+        return None
+    node = source if "clock" in source else source.get("moment")
+    if not isinstance(node, dict) or not isinstance(node.get("clock"), str):
+        return None
+    half = node.get("half") or node.get("period") or 1
+    return node["clock"], int(half)
+
+
+def _timing_errors(text: str, source: Any) -> list[str]:
+    found = _clock_of(source)
+    if found is None:
+        return []
+    clock, half = found
+    minute_part = clock.split(":")[0]
+    added = "+" in minute_part
+    minute = int(minute_part.split("+")[0])
+    errors = []
+    for pattern, fits in TIMING:
+        match = pattern.search(text)
+        if match and not fits(minute, half, added):
+            errors.append(f"timing: '{match.group(0)}' doesn't fit the clock {clock}")
+    return errors
+
+
 def verify_line(text: str, source: Any, meta: dict[str, Any], mode: str = "normal"
                 ) -> list[str]:
     """Errors in one line of AI text (an empty list means it passes)."""
@@ -138,6 +179,7 @@ def verify_line(text: str, source: Any, meta: dict[str, Any], mode: str = "norma
             errors.append(f"the number {number.text} isn't in the input")
     source_text = source if isinstance(source, str) else json.dumps(source, ensure_ascii=False)
     errors += _name_errors(stripped, source_text, meta)
+    errors += _timing_errors(stripped, source)
     return errors
 
 

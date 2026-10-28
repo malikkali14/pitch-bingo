@@ -101,3 +101,27 @@ def test_live_square_options(options, correct, ok):
 def test_live_square_question_length():
     errors = verify_live_square("x" * 61, ["foul", "offside"], "foul", ["foul", "offside"])
     assert any("60" in e for e in errors)
+
+
+@pytest.mark.parametrize("text,clock,half,ok", [
+    ("A block near half-time.", "10:25", 1, False),
+    ("A block just before the break.", "44:10", 1, True),
+    ("A block just before the break.", "45+2:24", 1, True),
+    ("A block before half-time.", "60:00", 2, False),
+    ("A chance late on.", "34:00", 1, False),
+    ("A chance late on.", "86:12", 2, True),
+    ("A chance in stoppage time.", "90+3:01", 2, True),
+    ("A chance in stoppage time.", "70:00", 2, False),
+    ("An early chance.", "08:00", 1, True),
+    ("An early chance.", "63:00", 2, False),
+    ("A big chance.", "10:25", 1, True),
+])
+def test_timing_words_must_match_the_clock(text, clock, half, ok):
+    source = {"clock": clock, "half": half}
+    errors = verify_line(text, source, META, "normal")
+    assert (not any("timing" in e for e in errors)) == ok, errors
+
+
+def test_timing_reads_a_nested_moment():
+    source = {"moment": {"clock": "10:25", "half": 1}, "profile": {}}
+    assert any("timing" in e for e in verify_line("Close to half-time.", source, META, "normal"))

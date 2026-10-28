@@ -89,7 +89,8 @@ class Orchestrator:
                                        self.names, shot_xg)
         key = (self.meta["match_id"], event["event_id"],
                personalizer.profile_hash(self.profile()))
-        job = workflows.MomentJob(event, moment, held, key)
+        job = workflows.MomentJob(event, moment, held, key,
+                                  [text for _, _, text in self.lines[-3:]])
         self._spawn("narrator", self._run(
             workflows.moment_workflow(self), job, "moment",
             {"moment_id": event["event_id"], "significance": significance,

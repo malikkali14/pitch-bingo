@@ -89,7 +89,7 @@ def build_input(square: dict[str, Any]) -> dict[str, Any]:
     answer_key = square.get("answer_key") or \
         square.get("answer", "").lower().replace("-", "_").replace(" ", "_")
     rule = rule_for(square["template"], answer_key)
-    keys = ("square_id", "question", "kind", "answer", "result", "clock", "events")
+    keys = ("square_id", "question", "kind", "answer", "result", "clock", "half", "events")
     payload: dict[str, Any] = {k: square[k] for k in keys if k in square}
     if rule:
         payload["rule"] = {"call": rule, "summary": RULES[rule]}
