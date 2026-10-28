@@ -5,3 +5,10 @@
 frontend/node_modules
 frontend/dist
 backend/app/static
+# Local environments and settings anywhere in the tree (backend/.venv is ~360 MB)
+**/.venv
+**/.env
+**/node_modules
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache

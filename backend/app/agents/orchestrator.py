@@ -203,6 +203,8 @@ class Orchestrator:
                 span.set_attribute(key, value)
             agent = attributes.get("agent", "")
             before = self.runners[agent].health.verifier_failures if agent in self.runners else 0
+            started = self.now()
+            outputs: list[Any] = []
             try:
                 result = await workflow.run(job)
                 outputs = [o for o in result.get_outputs() if o is not None]
@@ -212,6 +214,9 @@ class Orchestrator:
             after = self.runners[agent].health.verifier_failures if agent in self.runners else 0
             span.set_attribute("fallback_used", not outputs)
             span.set_attribute("verifier_errors", after - before)
+            telemetry.log_moment(session_id=self.session_id, workflow=name, ai=bool(outputs),
+                                 verifier_errors=after - before,
+                                 latency_ms=round((self.now() - started) * 1000), **attributes)
 
     # ---- definitions (spec 5.1) -------------------------------------------------------
 

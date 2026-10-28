@@ -125,3 +125,23 @@ async def test_metrics_for_calls_latency_fallbacks_and_breaker(monkeypatch):
                         point, "value", getattr(point, "count", 0))
     assert names["llm.calls"] >= 4 and names["agent.latency"] >= 1
     assert names["agent.fallbacks"] >= 3 and names["breaker.trips"] == 1
+
+
+async def test_one_json_log_line_per_routed_moment_without_the_text():
+    import io
+    import logging
+
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    logger = telemetry.moment_log()
+    logger.addHandler(handler)
+    try:
+        o, published = orch()
+        o.on_event(shot_event(), 72, [], [], lambda: STATS, False)
+        await o.drain()
+    finally:
+        logger.removeHandler(handler)
+    line = json.loads(stream.getvalue().strip().splitlines()[-1])
+    assert line["log"] == "producer.route" and line["ai"] is True and line["agent"] == "narrator"
+    assert line["session_id"] == "s1" and line["moment_id"] == "e000001"
+    assert published[0]["text"] not in stream.getvalue()        # never the reply (spec 12.3)
