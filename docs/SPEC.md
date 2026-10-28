@@ -1255,7 +1255,9 @@ None of these are secrets, so .env.example can show them all with placeholder va
 ### 11.6 Dockerfile
 
 ```dockerfile
-FROM node:20-alpine AS web
+# The frontend builds natively: its output is static files, and esbuild crashes under
+# amd64 emulation on Apple-silicon Macs. Only the Python stage needs the target platform.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS web
 WORKDIR /web
 COPY frontend/package*.json ./
 RUN npm ci
