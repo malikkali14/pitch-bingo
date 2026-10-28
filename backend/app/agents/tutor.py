@@ -70,6 +70,81 @@ STAT_DEFINITIONS = {
 }
 DEFINITIONS = {**RULES, **STAT_DEFINITIONS}
 
+DEFINITIONS_FR = {
+    "foul": "Une faute est une intervention irrégulière, comme un croche-pied, une poussée ou un "
+            "tacle en retard. L'adversaire obtient un coup franc à l'endroit de la faute.",
+    "advantage": "Si arrêter le jeu pénaliserait l'équipe qui a subi la faute, l'arbitre laisse "
+                 "jouer : c'est l'avantage. La faute peut quand même être sanctionnée après.",
+    "offside": "Un joueur est hors-jeu si, au moment de la passe d'un coéquipier, il est plus "
+               "près du but adverse que le ballon et l'avant-dernier défenseur, dans la moitié "
+               "adverse. Être à la même hauteur, c'est être en jeu. L'adversaire obtient un "
+               "coup franc.",
+    "corner": "Quand l'équipe qui défend touche le ballon en dernier avant qu'il ne franchisse sa "
+              "propre ligne de but, l'attaque obtient un corner.",
+    "goal_kick": "Quand l'équipe qui attaque touche le ballon en dernier avant qu'il ne sorte "
+                 "derrière le but sans but marqué, la défense repart par une sortie de but.",
+    "throw_in": "Quand le ballon franchit une ligne de touche, l'équipe qui ne l'a pas touché en "
+                "dernier le remet en jeu à deux mains, au-dessus de la tête.",
+    "yellow_card": "Le carton jaune est un avertissement pour une faute imprudente, un gain de "
+                   "temps ou une contestation. Deux jaunes dans le même match font un rouge.",
+    "red_card": "Le carton rouge exclut un joueur jusqu'à la fin du match, et son équipe joue à "
+                "un de moins. Il vient d'un second jaune ou d'une faute grave.",
+    "free_kick": "Le coup franc fait repartir le jeu après une faute ou un hors-jeu ; les "
+                 "adversaires doivent se placer à au moins 9,15 mètres.",
+    "substitution": "Chaque équipe peut changer de joueurs pendant les arrêts de jeu. Un joueur "
+                    "remplacé ne peut pas revenir.",
+    "goal": "Un but compte quand le ballon a entièrement franchi la ligne entre les poteaux et "
+            "sous la barre. L'équipe qui encaisse donne le coup d'envoi.",
+    "shot_on_target": "Un tir cadré serait entré sans le gardien ou un dernier défenseur. Les "
+                      "arrêts et les buts comptent ; les tirs à côté ou contrés, non.",
+    "possession": "La possession est la part du temps de jeu effectif où chaque équipe a le "
+                  "ballon.",
+    "xg": "Les buts attendus (xG) mesurent la chance qu'un tir devienne un but, selon l'endroit "
+          "et la façon dont il est pris. 0,10 veut dire environ un tir sur dix au fond.",
+    "pass": "Les longues passes éliminent des lignes adverses mais sont plus difficiles à "
+            "réussir ; les courtes gardent le ballon en sécurité.",
+    "shot_speed": "La vitesse de frappe est la vitesse du ballon au départ du tir. Au-delà de "
+                  "100 km/h, le gardien a très peu de temps pour réagir.",
+    "build_up": "Une longue action à base de passes déséquilibre la défense avant la dernière "
+                "passe ou le tir.",
+    "shots": "Les tirs comptent chaque tentative vers le but ; un tir cadré serait entré sans le "
+             "gardien ou un dernier défenseur.",
+    "corners": "Le nombre de corners obtenus par chaque équipe.",
+    "fouls": "Le nombre de fautes commises par chaque équipe.",
+    "cards": "Le jaune est un avertissement ; un rouge, ou deux jaunes, exclut le joueur.",
+    "momentum": "La dynamique montre quelle équipe se crée le plus de danger depuis quelques "
+                "minutes.",
+    "chaos": "De Calme à Chaotique mesure à quel point le jeu est décousu : beaucoup de pertes de "
+             "balle et de longs ballons, c'est chaotique ; de longues séquences de passes, "
+             "c'est calme.",
+    "pass_accuracy": "La précision des passes est la part des passes qui arrivent à un "
+                     "coéquipier.",
+    "ppda": "Le pressing compte les passes qu'une équipe laisse faire avant de récupérer le "
+            "ballon ; moins il y en a, plus le pressing est intense.",
+    "field_tilt": "L'inclinaison du terrain est la part de chaque équipe dans les ballons "
+                  "touchés dans le dernier tiers : qui repousse qui.",
+    "tempo": "Le tempo mesure la vitesse du jeu : le nombre d'actions par minute de jeu "
+             "effectif.",
+    "top_performer": "Le meilleur joueur est celui qui a touché le plus de ballons jusqu'ici.",
+}
+LANGUAGE_NAMES = {"en": "English", "fr": "French"}
+
+
+def definition(term: str, language: str = "en") -> str | None:
+    """The stored one-line definition of a term, in the viewer's language."""
+    if language == "fr" and term in DEFINITIONS_FR:
+        return DEFINITIONS_FR[term]
+    return DEFINITIONS.get(term)
+
+
+def language_rule(language: str) -> str:
+    """The line every agent prompt gets when the viewer reads another language (spec 5.4)."""
+    if language == "en":
+        return ""
+    name = LANGUAGE_NAMES.get(language, "English")
+    return (f"\nWrite directly in {name}, not a translation; numbers in {name} format "
+            "(0,15 not 0.15). Keep club and player names exactly as in INPUT.")
+
 TEMPLATE_RULES = {
     "yellow_cards": "yellow_card", "first_booking": "yellow_card", "corners": "corner",
     "first_corner": "corner", "offsides": "offside", "first_offside": "offside",

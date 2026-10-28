@@ -10,7 +10,7 @@ from collections import Counter
 from collections.abc import Callable
 from typing import Any
 
-from app.game import ranges
+from app.game import lang, ranges
 from app.game.bank import TEMPLATES
 from app.game.card import Board, Cell, Profile, Square, build_card
 from app.game.live import LiveProducer, LiveSpec, Moment, Wording, build_live
@@ -47,7 +47,8 @@ class Game:
         self.clock = WindowClock(now)
         self.clubs = {t["id"]: t["short_name"] for t in meta["teams"]}
         self.players = {p["id"]: p for t in meta["teams"] for p in t["players"]}
-        self.keeper = Scorekeeper(self.board, self.clock, wall_ms, set(self.players), self.label)
+        self.keeper = Scorekeeper(self.board, self.clock, wall_ms, set(self.players), self.label,
+                                  language=lang.normalize(profile.language))
         self.events: list[dict[str, Any]] = []
         self.stats = RunningStats(meta)
         self.second_half_t: float | None = None
@@ -196,11 +197,12 @@ class Game:
         return out
 
     def _add_live(self, moment: Moment, live: bool) -> Out:
-        spec = build_live(moment, self.profile.mode, self.live_used, self.meta)
+        spec = build_live(moment, self.profile.mode, self.live_used, self.meta,
+                          self.profile.units)
         sq = self._blank_for_live()
-        sq.template, sq.text = spec.template, {"en": spec.text}
+        sq.template, sq.text = spec.template, dict(spec.text)
         sq.answer_type, sq.options = "choice", spec.options
-        sq.option_labels = {"en": spec.labels}
+        sq.option_labels = {k: list(v) for k, v in spec.labels.items()}
         sq.masks, sq.source_event_ids = spec.masks, spec.source_event_ids
         sq.resolver, sq.state = f"live_{spec.template}", "waiting"
         self.live.segment_of[sq.id] = moment.segment
@@ -208,9 +210,11 @@ class Game:
             return self._open_live(sq, spec, live)
         self.pending_live[sq.id] = spec
         # Masks go on now, so the call's own feed line is held while the wording is written.
+        language = lang.normalize(self.profile.language)
         out: Out = [{"type": "live.pending", "square_id": sq.id, "template": spec.template,
-                     "mode": self.profile.mode, "text": spec.text, "options": spec.options,
-                     "labels": spec.labels, "correct": spec.correct,
+                     "mode": self.profile.mode, "language": language,
+                     "text": spec.text[language], "options": spec.options,
+                     "labels": spec.labels[language], "correct": spec.correct,
                      "moment": {"clock": moment.call["clock"], "half": moment.call["period"]}}]
         if sq.masks:
             out.append({"type": "mask.on", "square_id": sq.id, "tags": list(sq.masks)})
@@ -223,8 +227,16 @@ class Game:
         if spec is None or sq is None:
             return []
         if wording is not None:
-            sq.text = {"en": wording.text}
-            sq.options, sq.option_labels = list(wording.options), {"en": list(wording.labels)}
+            # The writer words the viewer's language; the others keep the template wording,
+            # for the options the writer kept.
+            language = lang.normalize(self.profile.language)
+            sq.text = {**sq.text, language: wording.text}
+            by_key = {other: dict(zip(spec.options, spec.labels[other], strict=True))
+                      for other in spec.labels}
+            sq.options = list(wording.options)
+            sq.option_labels = {other: [by_key[other][k] for k in wording.options]
+                                for other in spec.labels}
+            sq.option_labels[language] = list(wording.labels)
         return self._apply(self._open_live(sq, spec, True))
 
     def _open_live(self, sq: Square, spec: LiveSpec, live: bool) -> Out:
@@ -252,7 +264,8 @@ class Game:
         self.strategy_due = False
         if self.profile.strategist == "manual":
             return []
-        advice = suggest(self.board, self.accuracy, len(self.live.needed))
+        advice = suggest(self.board, self.accuracy, len(self.live.needed),
+                         language=lang.normalize(self.profile.language))
         if advice is None:
             return []
         auto = self.profile.strategist == "auto"
@@ -275,13 +288,16 @@ class Game:
     # ---- wording -------------------------------------------------------------------------
 
     def label(self, sq: Square, value: str | None) -> str:
+        """How an answer reads in the viewer's language."""
+        language = lang.normalize(self.profile.language)
         if value is None:
-            return "none"
+            return lang.say(language, "none")
         if value in self.clubs:
             return self.clubs[value]
         if value in self.players:
             return str(self.players[value]["full_name"])
-        if value in sq.options and sq.option_labels.get("en"):
-            return sq.option_labels["en"][sq.options.index(value)]
-        return {"level": "Level", "yes": "Yes", "no": "No"}.get(value, value)
+        labels = sq.option_labels.get(language) or sq.option_labels.get("en")
+        if value in sq.options and labels:
+            return labels[sq.options.index(value)]
+        return lang.OPTION_LABELS[language].get(value, value)
 

@@ -26,6 +26,7 @@ from app.agents.orchestrator import Orchestrator
 from app.config import settings
 from app.engine.clock import ReplayClock
 from app.engine.source import Frame, ReplaySource, Rewind, Tick
+from app.game import lang
 from app.game.card import Profile
 from app.game.fans import FanLeague, leaderboard
 from app.game.game import Game
@@ -224,6 +225,9 @@ class MatchSession:
                         item, result.significance, result.triggers, result.milestones,
                         lambda: self.game.redact_stats(self.stats.snapshot()), held,
                         self.stats.core.last_xg if item["type"] == "shot" else None)
+                    if item["type"] not in ("period_start", "period_end"):
+                        self.agents.focus_update(item["t"], item["clock"], item["period"],
+                                                 self.stats.snapshot)
                 self._send(out)
                 if live and item["type"] == "period_end":
                     self.agents.write_recap(self._recap_summary(
@@ -336,8 +340,9 @@ class MatchSession:
             standout = {"player": names.player(standout_id), "club": names.club(best["team_id"]),
                         "touches": best["touches"]}
         chaos = snapshot["patterns"]["chaos"]
-        patterns = [f"{names.club(chaos['in_control'])} in control"] if chaos.get("in_control") \
-            else []
+        patterns = [lang.say(self.profile.language, "in_control",
+                             club=names.club(chaos["in_control"]))] \
+            if chaos.get("in_control") else []
         row = next((r for r in leaderboard(self.viewer_row(), self.fans.rows()) if r["you"]), {})
         focus = self.profile.focus_player_id
         return recap.Summary(

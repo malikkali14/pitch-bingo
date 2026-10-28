@@ -25,13 +25,15 @@ from app.agents import (
 )
 from app.agents.clients import ChatClients
 from app.agents.runner import AgentRunner, with_limit
+from app.game import lang
 from app.game.card import Profile
 from app.game.live import Wording
 
 log = logging.getLogger(__name__)
 
 Publish = Callable[[dict[str, Any]], None]
-DEFINITION_CACHE: dict[str, str] = {}      # term -> the tutor's line; the same for everyone
+DEFINITION_CACHE: dict[tuple[str, str], str] = {}   # (term, language) -> the tutor's line
+FOCUS_EVERY_S = 600.0
 MAX_IN_FLIGHT = {"narrator": 3}   # past this, a moment keeps its template line
 
 
@@ -72,6 +74,7 @@ class Orchestrator:
         self.skipped: dict[str, int] = {name: 0 for name in self.runners}
         self.tasks: set[asyncio.Task[None]] = set()
         self.lines: list[tuple[int, str, str]] = []     # (significance, clock, AI line)
+        self.focus_said_at: float | None = None
 
     @property
     def online(self) -> bool:
@@ -83,12 +86,15 @@ class Orchestrator:
                  triggers: list[dict[str, Any]], milestones: list[dict[str, Any]],
                  stats: Callable[[], dict[str, Any]], held: bool,
                  shot_xg: float | None = None) -> None:
+        self._focus_milestones(event, milestones, held)
         if not self.online or not narrator.wants_line(significance, triggers):
             return
         if self.runners["narrator"].breaker.forced:
             return              # the failure switch: template lines only, cached ones too
         moment = narrator.build_moment(event, significance, stats(), triggers, milestones,
                                        self.names, shot_xg)
+        if self.profile().units == "imperial":
+            narrator.add_imperial(moment)
         key = (self.meta["match_id"], event["event_id"],
                personalizer.profile_hash(self.profile()))
         job = workflows.MomentJob(event, moment, held, key,
@@ -97,6 +103,40 @@ class Orchestrator:
             workflows.moment_workflow(self), job, "moment",
             {"moment_id": event["event_id"], "significance": significance,
              "agent": "narrator"}))
+
+    # ---- focus player (spec 5.3) -------------------------------------------------------
+
+    def _focus_milestones(self, event: dict[str, Any], milestones: list[dict[str, Any]],
+                          held: bool) -> None:
+        """The focus player's milestones are always announced, Foundry or not."""
+        focus = self.profile().focus_player_id
+        language = lang.normalize(self.profile().language)
+        for found in milestones:
+            if focus is None or found.get("player_id") != focus:
+                continue
+            what = lang.MILESTONES[language].get(found["kind"], found["kind"]).format(**found)
+            self.publish({"type": "feed.replace", "held": held, "ai": False,
+                          "entry_id": f"milestone:{event['event_id']}:{found['kind']}",
+                          "text": lang.say(language, "milestone",
+                                           player=self.names.player(focus), what=what),
+                          "clock": event["clock"], "event_type": "milestone"})
+
+    def focus_update(self, t: float, clock: str, period: int,
+                     stats: Callable[[], dict[str, Any]]) -> None:
+        """A line about the focus player at least every 10 match minutes (spec 5.3)."""
+        focus = self.profile().focus_player_id
+        if focus is None or (self.focus_said_at is not None and
+                             t - self.focus_said_at < FOCUS_EVERY_S):
+            return
+        self.focus_said_at = t
+        player = stats().get("players", {}).get(focus, {})
+        language = lang.normalize(self.profile().language)
+        self.publish({"type": "feed.replace", "held": False, "ai": False,
+                      "entry_id": f"focus:{round(t)}", "clock": clock, "event_type": "focus",
+                      "text": lang.say(language, "focus_line", player=self.names.player(focus),
+                                       touches=player.get("touches", 0),
+                                       passes=player.get("passes", 0),
+                                       shots=player.get("shots") or 0)})
 
     # ---- live squares (spec 8.4, the moment workflow's second branch) --------------------
 
@@ -145,7 +185,7 @@ class Orchestrator:
 
     def write_recap(self, summary: recap.Summary) -> None:
         """The template recap at once, then the recap agent's version if it passes."""
-        fallback = recap.template(summary)
+        fallback = recap.template(summary, self.profile().language)
         self.publish({"type": "recap", **fallback.model_dump()})
         if not self.online:
             return
@@ -179,10 +219,11 @@ class Orchestrator:
     def define(self, term: str) -> bool:
         """The stored definition at once; the rules tutor's version after, cached for every
         viewer. False for an unknown term."""
-        stored = tutor.DEFINITIONS.get(term)
+        language = lang.normalize(self.profile().language)
+        stored = tutor.definition(term, language)
         if stored is None:
             return False
-        cached = DEFINITION_CACHE.get(term)
+        cached = DEFINITION_CACHE.get((term, language))
         self.publish({"type": "definition", "term": term, "text": cached or stored,
                       "ai": cached is not None})
         if cached is not None or not self.online:
@@ -196,10 +237,11 @@ class Orchestrator:
                 span.set_attribute("term", term)
                 outcome = await self.runners["definitions"].run(
                     payload, lambda v: tutor.check_definition(v, payload, self.meta),
-                    prompt=with_limit(payload, "Length: the text must be under 140 characters."))
+                    prompt=with_limit(payload, "Length: the text must be under 140 characters."
+                                      + tutor.language_rule(language)))
                 span.set_attribute("fallback_used", outcome.value is None)
             if outcome.value is not None:
-                DEFINITION_CACHE[term] = outcome.value
+                DEFINITION_CACHE[(term, language)] = outcome.value
                 self.publish({"type": "definition", "term": term, "text": outcome.value,
                               "ai": True})
 

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from app.game import lang
 from app.game.card import GOOD, LINES, Board, Cell, Square
 from app.game.scorekeeper import Scorekeeper
 
@@ -113,7 +114,7 @@ def win_chance(board: Board, accuracy: Accuracy, lives_to_come: int) -> float:
 
 
 def suggest(board: Board, accuracy: Accuracy, lives_to_come: int,
-            min_gain: float = MIN_GAIN) -> Advice | None:
+            min_gain: float = MIN_GAIN, language: str = "en") -> Advice | None:
     """Try every single swap and the best pairs; return the best if it gains enough."""
     sim = _Sim(board, accuracy, lives_to_come)
     start = sim.arrangement()
@@ -133,7 +134,7 @@ def suggest(board: Board, accuracy: Accuracy, lives_to_come: int,
         return None
     moves = [{"from_cell": _cell(a), "to_cell": _cell(b)} for a, b in best_moves]
     return Advice(uuid.uuid4().hex[:12], moves, round(before, 3), round(best_chance, 3),
-                  _reason(board, start, best_moves, sim), signature(board))
+                  _reason(board, start, best_moves, language), signature(board))
 
 
 def rank_blanks(board: Board, accuracy: Accuracy, lives_to_come: int) -> Square:
@@ -157,18 +158,16 @@ def _cell(index: int) -> dict[str, int]:
     return {"row": index // 5, "col": index % 5}
 
 
-LINE_NAMES = {"row": "row {n}", "col": "column {n}"}
-
-
-def _line_name(line: str) -> str:
+def _line_name(line: str, language: str) -> str:
     kind, n = line.split(":")
     if kind == "diag":
-        return "the diagonal" if n == "0" else "the other diagonal"
-    return LINE_NAMES[kind].format(n=int(n) + 1)
+        return lang.say(language, "diag0" if n == "0" else "diag1")
+    return lang.say(language, kind, n=int(n) + 1)
 
 
-def _reason(board: Board, start: np.ndarray, moves: list[tuple[int, int]], sim: _Sim) -> str:
-    """Template reason; the strategist agent writes the real one in phase 6."""
+def _reason(board: Board, start: np.ndarray, moves: list[tuple[int, int]],
+            language: str = "en") -> str:
+    """Template reason, in the viewer's language; the strategist agent writes the AI one."""
     at = start
     for a, b in moves:
         at = _swap(at, a, b)
@@ -177,13 +176,10 @@ def _reason(board: Board, start: np.ndarray, moves: list[tuple[int, int]], sim: 
     lines = [line for line, cells in LINE_CELLS.items()
              if landing in cells and line not in board.scored_lines]
     if not lines:
-        return "Moved a square to raise your chance of a line."
+        return lang.say(language, "moved_any")
     best = max(lines, key=lambda line: sum(board.squares[at[c]].state in GOOD
                                            for c in LINE_CELLS[line]))
     good = sum(board.squares[at[c]].state in GOOD for c in LINE_CELLS[best])
-    what = "wildcard" if moved.state == "wildcard" else "blank"
-    if good == 5:
-        return f"Moved a {what} into {_line_name(best)} to complete it."
-    if good == 0:
-        return f"Moved a {what} into {_line_name(best)}, a line with nothing lost yet."
-    return f"Moved a {what} into {_line_name(best)}: {good} of its 5 squares are already correct."
+    what = lang.say(language, "wildcard" if moved.state == "wildcard" else "blank")
+    key = "moved_full" if good == 5 else "moved_fresh" if good == 0 else "moved_some"
+    return lang.say(language, key, what=what, line=_line_name(best, language), good=good)

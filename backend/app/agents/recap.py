@@ -10,6 +10,7 @@ from typing import Any
 
 from app.agents.messages import Recap, RecapContent
 from app.agents.runner import AgentSpec
+from app.game import lang
 from app.verify.verifier import verify_line
 
 PROMPT = """You write a short football match recap for a fan following a live match.
@@ -22,7 +23,6 @@ card. No betting language. Return JSON matching the RecapContent schema."""
 
 SPEC = AgentSpec("recap", "quality", PROMPT, RecapContent, budget_s=20.0)
 PARAGRAPH_LIMIT = 400
-LABELS = {"halftime": "Half-time", "full_time": "Full time", "catch_up": "Catch-up"}
 
 
 @dataclass
@@ -42,34 +42,53 @@ class Summary:
         return {k: v for k, v in asdict(self).items() if v not in (None, [], {})}
 
 
-def template(s: Summary) -> Recap:
+def template(s: Summary, language: str = "en") -> Recap:
+    """The template recap, in the viewer's language (spec 5.4), with the club and focus-player
+    paragraphs (spec 5.2, 5.3) when the profile has them."""
+    language = lang.normalize(language)
+
+    def say(key: str, **values: Any) -> str:
+        return lang.say(language, key, **values)
+
     (home, home_goals), (away, away_goals) = list(s.score.items())
-    headline = f"{LABELS.get(s.kind, 'Recap')}: {home} {home_goals}–{away_goals} {away}"
+    score = f"{home} {home_goals}–{away_goals} {away}"
+    label = say(f"recap_{s.kind}") if f"recap_{s.kind}" in lang.LINES["en"] else say("recap_other")
+    headline = say("headline", label=label, score=score)
     paragraphs = []
     if s.goals:
-        paragraphs.append("Goals: " + "; ".join(f"{g['scorer']} ({g['club']}, {g['minute']})"
-                                               for g in s.goals) + ".")
+        paragraphs.append(say("goals", list="; ".join(
+            f"{g['scorer']} ({g['club']}, {g['minute']})" for g in s.goals)))
     else:
-        paragraphs.append("No goals yet.")
+        paragraphs.append(say("no_goals"))
     h, a = s.stats.get(home, {}), s.stats.get(away, {})
     if h.get("possession") is not None and a.get("possession") is not None:
-        paragraphs.append(f"{home} had {h['possession']:.0f}% of the ball, with "
-                          f"{h.get('shots', 0)} shots to {a.get('shots', 0)}.")
+        paragraphs.append(say("possession", home=home, share=f"{h['possession']:.0f}",
+                              hs=h.get("shots", 0), as_=a.get("shots", 0)))
     paragraphs += s.moments[:2]
     if s.standout:
-        paragraphs.append(f"{s.standout['player']} ({s.standout['club']}) stood out with "
-                          f"{s.standout['touches']} touches.")
-    points = [f"{home} {home_goals}–{away_goals} {away}"]
-    points.append(s.moments[0] if s.moments else f"{home} {h.get('shots', 0)} shots, "
-                                                   f"{away} {a.get('shots', 0)}")
+        paragraphs.append(say("standout", **s.standout))
+    points = [score]
+    points.append(s.moments[0] if s.moments else say(
+        "shots_point", home=home, hs=h.get("shots", 0), away=away, as_=a.get("shots", 0)))
     points.append(s.patterns[0] if s.patterns else
-                  (f"{s.standout['player']} the standout" if s.standout else "All to play for"))
+                  (say("standout_point", player=s.standout["player"]) if s.standout
+                   else say("open_point")))
     card = s.card
-    bingo = (f"You have {card.get('points', 0)} points, {card.get('correct', 0)} correct and "
-             f"{card.get('lines', 0)} lines." if card else None)
+    bingo = (say("bingo", points=card.get("points", 0), correct=card.get("correct", 0),
+                 lines=card.get("lines", 0)) if card else None)
+    club = None
+    if s.club in s.score:
+        mine, theirs = s.score[s.club], next(n for c, n in s.score.items() if c != s.club)
+        state = "club_ahead" if mine > theirs else "club_behind" if mine < theirs else "club_level"
+        club = say("club_paragraph", club=s.club, situation=say(state, score=f"{mine}–{theirs}"))
+    player = None
+    if s.focus:
+        player = say("player_paragraph", player=s.focus["player"],
+                     touches=s.focus.get("touches", 0), passes=s.focus.get("passes", 0),
+                     shots=s.focus.get("shots", 0))
     return Recap(kind=s.kind, content=RecapContent(
         headline=headline, paragraphs=paragraphs, talking_points=points[:3],
-        club_paragraph=None, player_paragraph=None, bingo_summary=bingo))
+        club_paragraph=club, player_paragraph=player, bingo_summary=bingo))
 
 
 def check(content: RecapContent, summary: Summary, meta: dict[str, Any]

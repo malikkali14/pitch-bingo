@@ -10,6 +10,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.game import lang
 from app.stats.core import RunningStats
 
 Event = dict[str, Any]
@@ -41,6 +42,32 @@ class LiveTemplate:
     labels: tuple[str, ...]
     masks: tuple[str, ...]
     edges: tuple[float, ...] = ()           # bucket edges for measured values
+    unit: str = ""                          # m or km/h: shown in yards or mph for imperial
+
+
+IMPERIAL = {"m": ("yd", 1.0936), "km/h": ("mph", 0.621371)}
+
+
+def labels_for(template: LiveTemplate, language: str, units: str = "metric") -> list[str]:
+    """Option labels in a language and unit system (spec 5.4, 5.6). The answer keys don't
+    change, only how they read."""
+    language = lang.normalize(language)
+    if not template.edges:
+        words = lang.OPTION_LABELS[language]
+        return [words.get(key, label) for key, label in zip(template.options, template.labels,
+                                                              strict=True)]
+    if template.id == "move_passes":
+        return list(template.labels)
+    unit, factor = template.unit, 1.0
+    if units == "imperial" and unit in IMPERIAL:
+        unit, factor = IMPERIAL[unit]
+    digits = 2 if template.id == "shot_xg" else 0
+    values = [lang.number(round(edge * factor, digits) if digits else round(edge * factor),
+                          language, digits) for edge in template.edges]
+    suffix = f" {unit}" if unit else ""
+    middle = [f"{a}–{b}{suffix}" for a, b in zip(values, values[1:], strict=False)]
+    return [lang.UNDER[language].format(v=values[0] + suffix), *middle,
+            lang.OVER[language].format(v=values[-1] + suffix)]
 
 
 LIVE_TEMPLATES = {t.id: t for t in [
@@ -57,11 +84,11 @@ LIVE_TEMPLATES = {t.id: t for t in [
                  (0.05, 0.15, 0.35)),
     LiveTemplate("pass_length", "advanced", "How long was that pass?",
                  ("0-20", "20-35", "35-50", "50+"),
-                 ("under 20 m", "20–35 m", "35–50 m", "over 50 m"), (), (20, 35, 50)),
+                 ("under 20 m", "20–35 m", "35–50 m", "over 50 m"), (), (20, 35, 50), "m"),
     LiveTemplate("shot_speed", "advanced", "How fast was that shot?",
                  ("0-70", "70-90", "90-110", "110+"),
                  ("under 70 km/h", "70–90 km/h", "90–110 km/h", "over 110 km/h"), ("shots",),
-                 (70, 90, 110)),
+                 (70, 90, 110), "km/h"),
     LiveTemplate("move_passes", "advanced", "How many passes in that move?",
                  ("1-3", "4-7", "8-12", "13+"), ("1–3", "4–7", "8–12", "13+"), (),
                  (4, 8, 13)),
@@ -122,9 +149,9 @@ class Wording:
 @dataclass
 class LiveSpec:
     template: str
-    text: str
+    text: dict[str, str]                    # per language
     options: list[str]
-    labels: list[str]
+    labels: dict[str, list[str]]            # per language
     correct: str
     masks: list[str]
     source_event_ids: list[str]
@@ -261,14 +288,16 @@ def advanced_for(moment: Moment, used: Counter[str]) -> str | None:
     return min(fits, key=lambda t: (used[t], ADVANCED_ORDER.index(t)))
 
 
-def build_live(moment: Moment, mode: str, used: Counter[str], meta: dict[str, Any]) -> LiveSpec:
+def build_live(moment: Moment, mode: str, used: Counter[str], meta: dict[str, Any],
+               units: str = "metric") -> LiveSpec:
     """The question for a mode, with its answer computed here, never by a model."""
     home, away = meta["home_team_id"], meta["away_team_id"]
     template_id = normal_for(moment, used) if mode == "normal" else advanced_for(moment, used)
     assert template_id is not None
     template = LIVE_TEMPLATES[template_id]
     call = moment.call
-    options, labels = list(template.options), list(template.labels)
+    options = list(template.options)
+    labels = {language: labels_for(template, language, units) for language in lang.LANGUAGES}
     sources = [call["event_id"]]
     if template_id == "referee":
         correct = "foul" if call["type"] == "foul" else call["type"]
@@ -278,7 +307,8 @@ def build_live(moment: Moment, mode: str, used: Counter[str], meta: dict[str, An
             correct = kind
         else:
             clubs = {t["id"]: t["short_name"] for t in meta["teams"]}
-            options, labels, correct = [home, away], [clubs[home], clubs[away]], team
+            options, correct = [home, away], team
+            labels = {language: [clubs[home], clubs[away]] for language in lang.LANGUAGES}
     elif template_id in ("shot_xg", "shot_speed"):
         shot = _shot(moment)
         assert shot is not None
@@ -295,6 +325,7 @@ def build_live(moment: Moment, mode: str, used: Counter[str], meta: dict[str, An
         correct = bucket(template, moment.passes)
         sources = [e["event_id"] for e in moment.phase if e["type"] == "pass"][-20:] + sources
     used[template_id] += 1
-    return LiveSpec(template_id, template.text, options, labels, correct,
-                    list(template.masks), sources)
+    text = {language: lang.QUESTIONS[language].get(template_id, template.text)
+            for language in lang.LANGUAGES}
+    return LiveSpec(template_id, text, options, labels, correct, list(template.masks), sources)
 

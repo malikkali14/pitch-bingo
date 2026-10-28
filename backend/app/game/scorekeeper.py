@@ -9,6 +9,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from app.game import lang
 from app.game.card import Board, Cell, Square
 from app.game.scoring import LIVE_BASE, STATIC_BASE, check_lines, speed_points
 
@@ -46,12 +47,14 @@ def error(request: str, reason: str) -> dict[str, Any]:
 
 class Scorekeeper:
     def __init__(self, board: Board, clock: WindowClock, wall_ms: Callable[[], int],
-                 valid_players: set[str], label: Callable[[Square, str | None], str]) -> None:
+                 valid_players: set[str], label: Callable[[Square, str | None], str],
+                 language: str = "en") -> None:
         self.board = board
         self.clock = clock
         self.wall_ms = wall_ms
         self.valid_players = valid_players
         self.label = label
+        self.language = language
         self.lines_scored: list[dict[str, Any]] = []
         self.on_result: list[Callable[[Square], None]] = []   # e.g. the strategist's accuracy
 
@@ -114,13 +117,14 @@ class Scorekeeper:
     def explanation(self, sq: Square) -> str:
         """Template explanation; the rules tutor or narrator replaces it in phase 6."""
         answer = self.label(sq, sq.correct_answer)
-        return f"{sq.text.get('en', '')} Answer: {answer}."
+        question = sq.text.get(self.language) or sq.text.get("en", "")
+        return lang.say(self.language, "answer", question=question, answer=answer)
 
     def void(self, sq: Square) -> Out:
         """A first-to-happen event that never happened by full time (spec 4.3)."""
         sq.state = "void"
         sq.result = {"status": "void", "points": 0,
-                     "explanation": "It didn't happen this match.", "evidence_event_ids": []}
+                     "explanation": lang.say(self.language, "void"), "evidence_event_ids": []}
         out = [self._result_message(sq)]
         if sq.masks:
             out.append({"type": "mask.off", "square_id": sq.id, "tags": list(sq.masks)})
