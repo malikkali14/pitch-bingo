@@ -178,5 +178,19 @@
   "metrics.explain": "What do these mean?",
   "setup.language": "Language",
   "setup.language.en": "English",
-  "setup.language.fr": "Français"
+  "setup.language.fr": "Français",
+  "pitch.cue.foul": "✋ Foul",
+  "pitch.cue.advantage": "➜ Advantage",
+  "pitch.cue.offside": "⚑ Offside",
+  "pitch.cue.corner": "⛳ Corner",
+  "pitch.cue.substitution": "⇄ Sub",
+  "pitch.cue.goal": "⚽ GOAL",
+  "pitch.kmh": "{speed} km/h",
+  "metrics.stat": "Stat",
+  "alert.open": "Question open now",
+  "alert.answer": "Answer",
+  "alert.mute": "Mute chime",
+  "alert.unmute": "Unmute chime",
+  "top.following": "Following: {player}",
+  "top.profile": "Your profile"
 }

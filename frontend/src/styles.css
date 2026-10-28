@@ -277,3 +277,18 @@ button.term { background: none; border: 0; padding: 0; font: inherit; color: inh
   background: #f4f6f8; border-radius: 8px; padding: 0.5rem 0.7rem; margin-bottom: 0.7rem; }
 .definition p { margin: 0; }
 .definition .ai { font-size: 0.75em; font-weight: 700; color: var(--accent); }
+
+/* ---- review fixes: visible window alert, profile chip, focus player ------------------- */
+.open-alert {
+  display: flex; align-items: center; gap: 0.8rem; padding: 0.5rem 1rem; background: var(--open);
+  color: #fff; position: sticky; top: 0; z-index: 10;
+}
+.open-alert-label { font-weight: 700; text-transform: uppercase; font-size: 0.8em; }
+.open-alert-question { flex: 1; font-weight: 600; }
+.open-alert-seconds { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.open-alert button.ghost { color: #fff; border-color: #fff; }
+.open-alert button.primary { background: #fff; color: var(--ink); border-color: #fff; }
+.chip { margin: 0; padding: 0.25rem 0.7rem; border: 1px solid var(--rule); border-radius: 999px; font-size: 0.85em; color: var(--ink-2); align-self: center; }
+.focus-ring { fill: none; stroke: #e0a800; stroke-width: 0.5; stroke-dasharray: 0.9 0.5; }
+.popover { position: sticky; bottom: 0.5rem; z-index: 5; box-shadow: 0 4px 16px rgb(0 0 0 / 0.2); }
+.square { min-height: 5.4rem; font-size: 0.85em; }

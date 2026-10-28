@@ -23,11 +23,13 @@ interface Props {
   cards: Record<string, "yellow" | "red">;
   ball: BallState;
   reducedMotion: boolean;
+  /** The fan's focus player: ringed and always named. */
+  focusId?: string | null;
   /** Set while a "who" square is open: tapping a dot answers it (spec 3). */
   onPick?: (playerId: string) => void;
 }
 
-export function Pitch({ roster, frames, cues, cards, ball, reducedMotion, onPick }: Props) {
+export function Pitch({ roster, frames, cues, cards, ball, reducedMotion, focusId, onPick }: Props) {
   const [view, setView] = useState<{ pos: Positions | null; now: number }>({ pos: null, now: 0 });
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export function Pitch({ roster, frames, cues, cards, ball, reducedMotion, onPick
     Math.hypot(carrierXY[0] - pos.ball[0], carrierXY[1] - pos.ball[1]) <= CARRIER_RADIUS_M
     ? carrierId : null;
   if (carrier) named.add(carrier);
+  if (focusId) named.add(focusId);
 
   return (
     <div className="pitch-wrap">
@@ -83,7 +86,7 @@ export function Pitch({ roster, frames, cues, cards, ball, reducedMotion, onPick
           return (
             <PlayerDot key={id} x={x} y={y} home={player?.home ?? true}
               keeper={player?.position === "GK"} number={player?.shirt_number} card={cards[id]}
-              carrier={id === carrier} name={player?.full_name}
+              carrier={id === carrier} focus={id === focusId} name={player?.full_name}
               onPick={onPick ? () => onPick(id) : undefined} />
           );
         })}
@@ -139,11 +142,12 @@ interface DotProps {
   number?: number;
   card?: "yellow" | "red";
   carrier?: boolean;
+  focus?: boolean;
   name?: string;
   onPick?: () => void;
 }
 
-function PlayerDot({ x, y, home, keeper, number, card, carrier, name, onPick }: DotProps) {
+function PlayerDot({ x, y, home, keeper, number, card, carrier, focus, name, onPick }: DotProps) {
   const r = 1.4;
   const cls = `dot ${home ? "home" : "away"}${keeper ? " keeper" : ""}${carrier ? " carrier" : ""}` +
     (onPick ? " pickable" : "");
@@ -153,6 +157,7 @@ function PlayerDot({ x, y, home, keeper, number, card, carrier, name, onPick }: 
     : {};
   return (
     <g className={cls} transform={`translate(${x} ${y})`} {...pick}>
+      {focus && <circle className="focus-ring" r={r + 1.5} />}
       {carrier && <circle className="carrier-ring" r={r + 0.9} />}
       {home ? (
         <circle className="body" r={r} />
@@ -169,14 +174,7 @@ function PlayerDot({ x, y, home, keeper, number, card, carrier, name, onPick }: 
   );
 }
 
-const CUE_TEXT: Record<string, string> = {
-  foul: "✋ Foul",
-  advantage: "➜ Advantage",
-  offside: "⚑ Offside",
-  corner: "⛳ Corner",
-  substitution: "⇄ Sub",
-  goal: "⚽ GOAL",
-};
+const CUE_TYPES = ["foul", "advantage", "offside", "corner", "substitution", "goal"];
 
 function CueMark({ cue, now, homeId, reducedMotion }: { cue: Cue; now: number; homeId: string; reducedMotion: boolean }) {
   const e: MatchEvent = cue.event;
@@ -195,11 +193,11 @@ function CueMark({ cue, now, homeId, reducedMotion }: { cue: Cue; now: number; h
     return (
       <g className="shot">
         <line x1={e.x} y1={e.y} x2={goalX} y2={goalY} markerEnd="url(#arrow)" />
-        <Badge x={(e.x + goalX) / 2} y={(e.y + goalY) / 2 - 2} text={`${Number(e.ball_speed_kmh).toFixed(0)} km/h`} />
+        <Badge x={(e.x + goalX) / 2} y={(e.y + goalY) / 2 - 2} text={t("pitch.kmh", { speed: Number(e.ball_speed_kmh).toFixed(0) })} />
       </g>
     );
   }
-  const text = CUE_TEXT[e.type];
+  const text = CUE_TYPES.includes(e.type) ? t(`pitch.cue.${e.type}`) : null;
   return text ? <Badge x={e.x} y={e.y - 3} text={text} /> : null;
 }
 

@@ -1,7 +1,7 @@
 // Metrics panel (spec 3): normal mode basics, advanced mode adds xG, passing and pressure.
 
 import { useState } from "react";
-import { t } from "../i18n";
+import { has, t } from "../i18n";
 import type { StatsMessage } from "../protocol";
 import type { Roster } from "../roster";
 import type { XgPoint } from "../state/match";
@@ -74,7 +74,7 @@ export function Metrics({ roster, stats, xg, mode, definition, onDefine }: Props
       <table className="stat-table">
         <thead>
           <tr>
-            <th scope="col"><span className="visually-hidden">Stat</span></th>
+            <th scope="col"><span className="visually-hidden">{t("metrics.stat")}</span></th>
             <th scope="col"><span className="swatch home" aria-hidden="true" /> {roster.home.short_name}</th>
             <th scope="col">{roster.away.short_name} <span className="swatch away" aria-hidden="true" /></th>
           </tr>
@@ -100,7 +100,7 @@ export function Metrics({ roster, stats, xg, mode, definition, onDefine }: Props
       {definition && (
         <div className="definition" role="status">
           <p>
-            <strong>{definition.term.replace(/_/g, " ")}:</strong>{" "}
+            <strong>{has(`metrics.${definition.term}`) ? t(`metrics.${definition.term}`) : definition.term.replace(/_/g, " ")}:</strong>{" "}
             {definition.text || "…"} {definition.ai && <span className="ai">{t("feed.ai")}</span>}
           </p>
           <button type="button" className="ghost" onClick={() => onDefine?.(null)}>{t("card.close")}</button>

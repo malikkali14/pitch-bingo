@@ -36,10 +36,10 @@ export function useNow(ms = 250): number {
 }
 
 /** A short chime when an announced window opens (spec 3). Silent where audio isn't allowed. */
-export function useChime(trigger: string): void {
+export function useChime(trigger: string, muted = false): void {
   const context = useRef<AudioContext | null>(null);
   useEffect(() => {
-    if (!trigger || typeof window === "undefined" || !("AudioContext" in window)) return;
+    if (!trigger || muted || typeof window === "undefined" || !("AudioContext" in window)) return;
     try {
       context.current ??= new AudioContext();
       const ctx = context.current;
