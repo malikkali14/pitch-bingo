@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type { Cell } from "../card/types";
+import { setLanguage } from "../i18n";
 import type { ClientMessage, Profile, ServerMessage, Speed } from "../protocol";
 import { FrameStore } from "./frames";
 import { initialState, matchReducer, type MatchState } from "./match";
 
 /** What the setup screen chooses (spec 5.7); the server fills in the rest. */
-export type ProfileChoice = Partial<Pick<Profile, "mode" | "club" | "focus_player_id" | "handle">>;
+export type ProfileChoice = Partial<Pick<Profile, "mode" | "club" | "focus_player_id" | "handle"
+  | "language">>;
 
 export interface Kickoff {
   seed?: number;
@@ -59,6 +61,7 @@ export function useMatchSession(kickoff: Kickoff | null): MatchSession {
         socket.current = ws;
         ws.onmessage = (e) => {
           const msg = JSON.parse(String(e.data)) as ServerMessage;
+          if (msg.type === "session.ready") setLanguage(msg.profile.language);
           if (msg.type === "frame") frames.push(msg, performance.now());
           else dispatch({ kind: "message", msg, now: performance.now() });
         };

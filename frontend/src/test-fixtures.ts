@@ -31,5 +31,5 @@ export function ev(type: string, fields: Partial<MatchEvent> & Record<string, un
 
 export const PROFILE: Profile = {
   mode: "normal", club: "neutral", focus_player_id: null, language: "en", strategist: "suggest",
-  handle: "You",
+  handle: "You", units: "metric", my_metric: "none",
 };

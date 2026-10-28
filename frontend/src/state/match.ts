@@ -293,7 +293,7 @@ function topMoments(moments: Moment[], event: MatchEvent, significance: number, 
 }
 
 function replaceLine(state: MatchState, msg: FeedReplaceMessage): MatchState {
-  const patch = { text: msg.text, ai: true };
+  const patch = { text: msg.text, ai: msg.ai };
   if (state.feed.some((f) => f.entry_id === msg.entry_id)) {
     return { ...state, feed: state.feed.map((f) => (f.entry_id === msg.entry_id ? { ...f, ...patch } : f)) };
   }
@@ -302,7 +302,7 @@ function replaceLine(state: MatchState, msg: FeedReplaceMessage): MatchState {
   const kind = msg.event_type.startsWith("period") ? "period" : msg.event_type;
   const entry: FeedEntry = {
     entry_id: msg.entry_id, minute: minuteLabel(msg.clock), icon: iconFor(msg.event_type),
-    text: msg.text, tag: has(`tag.${kind}`) ? t(`tag.${kind}`) : t("tag.moment"), ai: true, tags: [],
+    text: msg.text, tag: has(`tag.${kind}`) ? t(`tag.${kind}`) : t("tag.moment"), ai: msg.ai, tags: [],
   };
   if (msg.held) return { ...state, held: { ...state.held, [msg.entry_id]: entry } };
   return { ...state, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };

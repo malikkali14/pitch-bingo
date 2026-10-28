@@ -175,5 +175,8 @@
   "fulltime.talking_points": "Talking points",
   "feed.catch_up": "Catch me up",
   "metrics.define": "What is {stat}?",
-  "metrics.explain": "What do these mean?"
+  "metrics.explain": "What do these mean?",
+  "setup.language": "Language",
+  "setup.language.en": "English",
+  "setup.language.fr": "Français"
 }

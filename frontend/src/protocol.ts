@@ -115,6 +115,8 @@ export interface Profile {
   language: string;
   strategist: StrategistSetting;
   handle: string;
+  units: "metric" | "imperial";
+  my_metric: string;
 }
 
 export interface SessionReadyMessage extends Envelope {
@@ -255,7 +257,7 @@ export interface FeedReplaceMessage extends Envelope {
   type: "feed.replace";
   entry_id: string;
   text: string;
-  ai: true;
+  ai: boolean; // false for the server's own template lines (focus player, milestones)
   clock: string;
   event_type: string;
   held: boolean;

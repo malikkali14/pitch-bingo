@@ -2,7 +2,7 @@
 // and "Kick off". Language arrives with French in phase 7.
 
 import { useEffect, useState, type FormEvent } from "react";
-import { t } from "../i18n";
+import { LANGUAGES, getLanguage, setLanguage, t, type Language } from "../i18n";
 import type { MatchMeta, Mode } from "../protocol";
 import type { Kickoff } from "../state/session";
 
@@ -26,6 +26,11 @@ export function Setup({ onKickoff, meta: given, seed: givenSeed }: Props) {
   const [club, setClub] = useState("neutral");
   const [focus, setFocus] = useState("");
   const [handle, setHandle] = useState("You");
+  const [language, chooseLanguage] = useState<Language>(getLanguage());
+  const pickLanguage = (next: Language) => {
+    setLanguage(next);
+    chooseLanguage(next);       // re-render this screen in the new language
+  };
 
   useEffect(() => {
     if (match) return;
@@ -48,7 +53,8 @@ export function Setup({ onKickoff, meta: given, seed: givenSeed }: Props) {
     e.preventDefault();
     onKickoff({
       seed: seed || undefined,
-      profile: { mode, club, focus_player_id: focus || null, handle: handle.trim() || "You" },
+      profile: { mode, club, focus_player_id: focus || null, handle: handle.trim() || "You",
+        language },
     });
   };
 
@@ -58,6 +64,16 @@ export function Setup({ onKickoff, meta: given, seed: givenSeed }: Props) {
       <p className="setup-match">{t("setup.match", { home: home.name, away: away.name })}</p>
       <form onSubmit={submit} aria-labelledby="setup-title">
         <h2 id="setup-title">{t("setup.title")}</h2>
+        <fieldset>
+          <legend>{t("setup.language")}</legend>
+          {LANGUAGES.map((l) => (
+            <label key={l} className="choice">
+              <input type="radio" name="language" value={l} checked={language === l}
+                onChange={() => pickLanguage(l)} />
+              {t(`setup.language.${l}`)}
+            </label>
+          ))}
+        </fieldset>
         <fieldset>
           <legend>{t("setup.mode")}</legend>
           {(["normal", "advanced"] as const).map((m) => (
