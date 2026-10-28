@@ -292,3 +292,41 @@ button.term { background: none; border: 0; padding: 0; font: inherit; color: inh
 .focus-ring { fill: none; stroke: #e0a800; stroke-width: 0.5; stroke-dasharray: 0.9 0.5; }
 .popover { position: sticky; bottom: 0.5rem; z-index: 5; box-shadow: 0 4px 16px rgb(0 0 0 / 0.2); }
 .square { min-height: 5.4rem; font-size: 0.85em; }
+
+/* ---- round 2: folds, hints, carousel, dark mode --------------------------------------- */
+.hint { margin: 0 0 0.5rem; color: var(--muted); font-size: 0.85em; }
+.fold { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 0.8rem; }
+.fold > summary { cursor: pointer; font-weight: 700; font-size: 1rem; }
+.fold[open] > summary { margin-bottom: 0.5rem; }
+.fold > section { border: 0; padding: 0; margin: 0; }
+.fold > section h2, .fold > section .card-header h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.how-carousel { margin: 0 0 1rem; }
+.how-carousel h3 { margin: 0 0 0.4rem; }
+.slides { list-style: none; margin: 0; padding: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  scrollbar-width: none; border: 1px solid var(--rule); border-radius: 10px; background: var(--tint); }
+.slides::-webkit-scrollbar { display: none; }
+.slide { flex: 0 0 100%; scroll-snap-align: center; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; min-height: 7.5rem; }
+.carousel-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem; }
+.dots { display: flex; gap: 0.5rem; }
+.dot-btn { width: 12px; height: 12px; padding: 0; border-radius: 50%; border: 1px solid var(--ink-2); background: transparent; cursor: pointer; }
+.dot-btn.on { background: var(--ink); }
+.keep-light { color: var(--ink); }
+:root, .keep-light {
+  --tint: #f4f6f8; --track: #eceef0;
+}
+:root[data-theme="dark"] {
+  --surface: #14171a; --panel: #1d2125; --ink: #eceef0; --ink-2: #c3c8ce; --muted: #a2a9b1; --rule: #3a4047;
+  --tint: #262b31; --track: #2f353c; --good: #5fcf86; --bad: #ff8a80; --open: #6db3f2; --accent: #f27ac1;
+  color-scheme: dark;
+}
+.keep-light {
+  --surface: #fcfcfb; --panel: #ffffff; --ink: #1b1d1f; --ink-2: #4a4f55; --muted: #5f6670; --rule: #d9dcdf;
+  --good: #1d7a3e; --bad: #b3261e; --open: #1f6fb4; --accent: #b0127a; --tint: #f4f6f8; --track: #eceef0;
+}
+.definition { background: var(--tint); }
+.split-bar, .momentum-bar, .meter { background: var(--track); }
+.segmented button[aria-pressed="true"], button.primary, .stoppage { color: var(--surface); }
+.keep-light .stoppage, .pitch-wrap .stoppage { color: #fff; background: #1b1d1f; }
+.banner { background: var(--tint); }
+.board-table tr.you { background: var(--tint); }
+.open-alert button.primary { color: #1b1d1f; }

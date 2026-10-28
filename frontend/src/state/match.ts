@@ -282,7 +282,21 @@ function onEvent(state: MatchState, msg: EventMessage, now: number): MatchState 
   if (entry && msg.significance > 0) next.moments = topMoments(state.moments, e, msg.significance, entry.text);
   if (!entry || state.feed.some((f) => f.entry_id === entry.entry_id)) return next;
   if (msg.held) return { ...next, held: { ...state.held, [entry.entry_id]: entry } };
-  return { ...next, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+  return { ...next, feed: insertEntry(state.feed, entry) };
+}
+
+/** "45+2'" is 45.02, "12'" is 12: a sortable match minute from a feed label. */
+function minuteValue(label: string): number {
+  const [main, extra] = label.replace("'", "").split("+");
+  return (Number(main) || 0) + (Number(extra) || 0) / 100;
+}
+
+/** Newest first by match minute, so late-arriving lines (revealed, recaps) land in their place. */
+function insertEntry(feed: FeedEntry[], entry: FeedEntry): FeedEntry[] {
+  const at = minuteValue(entry.minute);
+  const index = feed.findIndex((f) => minuteValue(f.minute) <= at);
+  const next = index === -1 ? [...feed, entry] : [...feed.slice(0, index), entry, ...feed.slice(index)];
+  return next.slice(0, FEED_LIMIT);
 }
 
 function topMoments(moments: Moment[], event: MatchEvent, significance: number, text: string): Moment[] {
@@ -305,7 +319,7 @@ function replaceLine(state: MatchState, msg: FeedReplaceMessage): MatchState {
     text: msg.text, tag: has(`tag.${kind}`) ? t(`tag.${kind}`) : t("tag.moment"), ai: msg.ai, tags: [],
   };
   if (msg.held) return { ...state, held: { ...state.held, [msg.entry_id]: entry } };
-  return { ...state, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+  return { ...state, feed: insertEntry(state.feed, entry) };
 }
 
 function reveal(state: MatchState, ids: string[]): MatchState {
@@ -318,7 +332,7 @@ function reveal(state: MatchState, ids: string[]): MatchState {
     revealed.push({ ...entry, tag: t("feed.revealed"), revealed: true });
   }
   if (!revealed.length) return { ...state, held };
-  return { ...state, held, feed: [...revealed.reverse(), ...state.feed].slice(0, FEED_LIMIT) };
+  return { ...state, held, feed: revealed.reduce(insertEntry, state.feed) };
 }
 
 function explain(state: MatchState, squareId: string, text: string, ai: boolean): MatchState {
@@ -336,18 +350,22 @@ function explain(state: MatchState, squareId: string, text: string, ai: boolean)
 /** Adds a line, or replaces one with the same id in place (an AI version of a template). */
 function upsertLine(state: MatchState, entry: FeedEntry): MatchState {
   const existing = state.feed.find((f) => f.entry_id === entry.entry_id);
-  if (!existing) return { ...state, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+  if (!existing) return { ...state, feed: insertEntry(state.feed, entry) };
   if (existing.ai && !entry.ai) return state;          // never downgrade an AI line
   return { ...state, feed: state.feed.map((f) => (f.entry_id === entry.entry_id ? { ...entry, minute: f.minute } : f)) };
 }
 
 function onRecap(state: MatchState, msg: RecapMessage): MatchState {
   const current = state.recaps[msg.kind];
-  if (current?.ai && !msg.ai) return state;
+  const catchUp = msg.kind === "catch_up";
+  if (!catchUp && current?.ai && !msg.ai) return state;
   const next = { ...state, recaps: { ...state.recaps, [msg.kind]: msg } };
-  if (msg.kind !== "halftime" && msg.kind !== "catch_up") return next;
+  if (msg.kind !== "halftime" && !catchUp) return next;
+  // Every catch-up request is its own line: the template starts one, the AI version fills it.
+  const lines = state.feed.filter((f) => f.entry_id.startsWith("recap:catch_up:")).length;
+  const id = catchUp ? `recap:catch_up:${msg.ai ? Math.max(lines, 1) : lines + 1}` : `recap:${msg.kind}`;
   return upsertLine(next, {
-    entry_id: `recap:${msg.kind}`,
+    entry_id: id,
     minute: state.anchor ? minuteLabel(state.anchor.clock) : "45'",
     icon: "📋",
     text: [msg.content.headline, msg.content.paragraphs[0]].filter(Boolean).join(" "),

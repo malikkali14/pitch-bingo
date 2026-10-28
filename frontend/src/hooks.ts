@@ -56,3 +56,23 @@ export function useChime(trigger: string, muted = false): void {
     }
   }, [trigger]);
 }
+
+/** Page theme (dark or light), remembered between visits. The pitch and the card keep their own colours. */
+export function useTheme(): [boolean, () => void] {
+  const [dark, setDark] = useState(() => {
+    try {
+      return localStorage.getItem("theme") === "dark";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    try {
+      localStorage.setItem("theme", dark ? "dark" : "light");
+    } catch {
+      // Storage blocked: the choice just lasts for this visit.
+    }
+  }, [dark]);
+  return [dark, () => setDark((d) => !d)];
+}

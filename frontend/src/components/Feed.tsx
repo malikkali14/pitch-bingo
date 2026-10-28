@@ -17,6 +17,7 @@ export function Feed({ entries, masked = new Set(), onCatchUp }: FeedProps) {
         <h2 id="feed-title">{t("feed.title")}</h2>
         {onCatchUp && <button type="button" className="ghost" onClick={onCatchUp}>{t("feed.catch_up")}</button>}
       </div>
+      <p className="hint">{t("feed.hint")}</p>
       <ol className="feed-list" role="log" aria-live="polite" aria-relevant="additions">
         {entries.length === 0 && <li className="feed-empty">{t("feed.empty")}</li>}
         {entries.map((e) => {

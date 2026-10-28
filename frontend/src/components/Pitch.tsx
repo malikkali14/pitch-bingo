@@ -60,7 +60,7 @@ export function Pitch({ roster, frames, cues, cards, ball, reducedMotion, focusI
   if (focusId) named.add(focusId);
 
   return (
-    <div className="pitch-wrap">
+    <div className="pitch-wrap keep-light">
     {ball.stoppage && <p className="stoppage" role="status">{ball.stoppage}</p>}
     <svg
       className="pitch"
