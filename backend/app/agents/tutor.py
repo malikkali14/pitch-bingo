@@ -97,9 +97,9 @@ explain the football term in INPUT so a newcomer gets it, using the stored defin
 words, no jargon, no numbers that aren't in INPUT. Return JSON matching the Definition schema,
 copying term from INPUT."""
 
-TUTOR = AgentSpec("rules_tutor", "fast", TUTOR_PROMPT, Explanation, budget_s=7.0)
-DEFINE = AgentSpec("definitions", "fast", DEFINITION_PROMPT, Definition, budget_s=7.0)
-CONTEXT = AgentSpec("narrator_context", "fast", CONTEXT_PROMPT, Explanation, budget_s=7.0)
+TUTOR = AgentSpec("rules_tutor", "fast", TUTOR_PROMPT, Explanation, budget_s=3.0)
+DEFINE = AgentSpec("definitions", "fast", DEFINITION_PROMPT, Definition, budget_s=3.0)
+CONTEXT = AgentSpec("narrator_context", "fast", CONTEXT_PROMPT, Explanation, budget_s=3.0)
 
 
 def rule_for(template: str, answer: str | None) -> str | None:

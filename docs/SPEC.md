@@ -725,12 +725,12 @@ Model output always passes the verifier before it reaches the screen, and a temp
 | Verifier | Code | Every LLM output | Pass, or a list of errors | 10 ms | None needed |
 | Narrator | LLM | Significance 40 or more, pattern triggers | Language-neutral insight | 3 s | Template line |
 | Personalizer | LLM | Each insight, per profile | Final text in mode, club, language | 2 s | Template rendering |
-| Rules tutor | LLM | Normal-mode window closes, definition taps | One or two lines on the rule | 7 s | Stored rule summary |
+| Rules tutor | LLM | Normal-mode window closes, definition taps | One or two lines on the rule | 3 s | Stored rule summary |
 | Square writer | LLM | Pre-match card build, live-square moments | Square wording and wrong options | 2 s | Template wording |
-| Strategist | Code plus LLM | After results and moves | Moves and a one-line reason | 7 s | Template reason |
+| Strategist | Code plus LLM | After results and moves | Moves and a one-line reason | 3 s | Template reason |
 | Recap | LLM | Halftime, full time, catch-up request | Recaps and studio talking points | 20 s | Template recap from stats |
 
-Budgets were set on Oct 27 from calls to the real Foundry endpoint: the slowest measured call per agent, rounded up, per attempt. gpt-4.1-mini is the only fast model this subscription can run, so speed comes from budgets and prompts, not a model swap. The tutor, narrator context and strategist ran slower than in isolation in that test, likely because the gpt-4.1-mini deployment (capacity 10, about 10,000 tokens a minute) was throttling; raising its capacity is the next lever. Narrator context, the advanced-mode explanation, has a 7 s budget.
+Budgets were set on Oct 27 from calls to the real Foundry endpoint: the slowest measured call per agent, rounded up, per attempt. gpt-4.1-mini is the only fast model this subscription can run, so speed comes from budgets and prompts, not a model swap. The tutor, narrator context and strategist first measured 6 s or more because the gpt-4.1-mini deployment (capacity 10) was throttling. At capacity 100 they took 1.0–2.3 s at most, so their budgets are 3 s, as are narrator context (the advanced-mode explanation) and definitions.
 
 Simulated fans for the leaderboard are code too: each fan has an accuracy and a typical answer time, and answers every window through the scorekeeper.
 
