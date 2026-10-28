@@ -206,14 +206,19 @@ class Verifier(Step):
 
 class Personalizer(Step):
     @handler
-    async def personalize(self, item: Drafted, ctx: WorkflowContext[Line]) -> None:
+    async def personalize(self, item: Drafted, ctx: WorkflowContext[Line, None]) -> None:
         profile = self.o.profile()
-        payload = personalizer.build_input(item.insight, profile, self.o.names)
+        payload = personalizer.build_input(item.insight, profile, self.o.names, item.job.moment)
         limit = LIMITS[profile.mode]
+        rule = (f"Length: the text must be under {limit} characters."
+                + personalizer.unit_rule(profile) + tutor.language_rule(profile.language))
         outcome = await self.o.runners["personalizer"].run(
             payload, lambda value: personalizer.check(value, item.job.moment, payload,
                                                       self.o.meta, profile.mode),
-            prompt=with_limit(payload, f"Length: the text must be under {limit} characters."))
+            prompt=with_limit(payload, rule))
+        if outcome.value is None and profile.language != "en":
+            await ctx.yield_output(None)      # the template line in the viewer's language stays
+            return
         await ctx.send_message(Line(item.job, outcome.value or item.text))
 
 
@@ -231,10 +236,12 @@ class PersonalizeExplanation(Step):
                           why_facts=[], tags=[], evidence_ids=[], numbers=[])
         payload = personalizer.build_input(insight, profile, self.o.names)
         limit = LIMITS[item.job.mode]
+        rule = (f"Length: the text must be under {limit} characters."
+                + tutor.language_rule(profile.language))
         outcome = await self.o.runners["personalizer"].run(
             payload, lambda value: personalizer.check(value, item.job.payload, payload,
                                                       self.o.meta, item.job.mode),
-            prompt=with_limit(payload, f"Length: the text must be under {limit} characters."))
+            prompt=with_limit(payload, rule))
         await ctx.send_message(Explained(item.job, outcome.value or item.text))
 
 
@@ -318,7 +325,8 @@ class Explainer(Step):
     @handler
     async def explain(self, job: WindowJob, ctx: WorkflowContext[Explained, None]) -> None:
         limit = LIMITS[job.mode]
-        rule = f"Length: the text must be under {limit} characters, one or two short sentences."
+        rule = (f"Length: the text must be under {limit} characters, one or two short sentences."
+                + tutor.language_rule(self.o.profile().language))
         outcome = await self.o.runners[self.agent].run(
             job.payload, lambda value: tutor.check(value, job.payload, self.o.meta, job.mode),
             prompt=with_limit(job.payload, rule))
@@ -359,7 +367,8 @@ class Optimizer(Step):
 class Strategist(Step):
     @handler
     async def explain(self, job: StrategyJob, ctx: WorkflowContext[Reasoned, None]) -> None:
-        rule = f"Length: the reason must be under {strategist_reason.LIMIT} characters."
+        rule = (f"Length: the reason must be under {strategist_reason.LIMIT} characters."
+                + tutor.language_rule(self.o.profile().language))
         outcome = await self.o.runners["strategist"].run(
             job.payload, lambda value: strategist_reason.check(value, job.payload, self.o.meta),
             prompt=with_limit(job.payload, rule))
@@ -394,7 +403,8 @@ class Recapper(Step):
     async def write(self, job: RecapJob, ctx: WorkflowContext[Recapped, None]) -> None:
         summary = job.summary
         rule = (f"Length: each paragraph under {recap.PARAGRAPH_LIMIT} characters, the headline "
-                f"and each talking point under {LIMITS['advanced']}.")
+                f"and each talking point under {LIMITS['advanced']}."
+                + tutor.language_rule(self.o.profile().language))
         outcome = await self.o.runners["recap"].run(
             summary.payload(), lambda content: recap.check(content, summary, self.o.meta),
             prompt=with_limit(summary.payload(), rule))

@@ -125,3 +125,14 @@ def test_timing_words_must_match_the_clock(text, clock, half, ok):
 def test_timing_reads_a_nested_moment():
     source = {"moment": {"clock": "10:25", "half": 1}, "profile": {}}
     assert any("timing" in e for e in verify_line("Close to half-time.", source, META, "normal"))
+
+
+@pytest.mark.parametrize("text,ok", [
+    ("Un pari risqué.", False),
+    ("La remise en jeu côté gauche.", True),
+    ("Juste avant la pause.", False),        # at 10:25
+    ("Une action en début de match.", True),
+])
+def test_french_betting_and_timing(text, ok):
+    errors = verify_line(text, {"clock": "10:25", "half": 1}, META, "normal")
+    assert (errors == []) == ok, errors

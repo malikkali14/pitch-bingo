@@ -17,7 +17,9 @@ from typing import Any
 
 LIMITS = {"normal": 140, "advanced": 220}
 QUESTION_LIMIT = 60
-BETTING = re.compile(r"\b(odds|bets?|betting|wagers?|stakes?)\b", re.IGNORECASE)
+# English and French. Not "mise" or "cote": "remise en jeu" and "côté" are football French.
+BETTING = re.compile(r"\b(odds|bets?|betting|wagers?|stakes?|paris|pari|parier|parieurs?)\b",
+                     re.IGNORECASE)
 NUMBER = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)(\s*%)?")
 WORD = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ][\w'’-]*")
 # Capitalised words a line may use that are not names.
@@ -40,13 +42,16 @@ ORDINARY = {
 
 # Time words, and the clock minutes (and half) where they make sense.
 TIMING = [
-    (re.compile(r"\b(half[- ]?time|interval|(before|towards?|near|close to) the break)\b",
+    (re.compile(r"\b(half[- ]?time|interval|(before|towards?|near|close to) the break"
+                r"|mi-temps|avant la pause|juste avant la pause)\b",
                 re.IGNORECASE), lambda minute, half, added: half == 1 and (minute >= 40 or added)),
     (re.compile(r"\b(late on|late in the (game|match)|dying (minutes|moments)"
                 r"|closing (stages|minutes)|final whistle|stoppage time|added time|injury time"
-                r"|full[- ]?time)\b",
+                r"|full[- ]?time|fin de (match|rencontre)|temps additionnel|arrêts de jeu"
+                r"|coup de sifflet final|dernières minutes)\b",
                 re.IGNORECASE), lambda minute, half, added: minute >= 80 or added),
-    (re.compile(r"\b(early|opening (minutes|exchanges|stages))\b", re.IGNORECASE),
+    (re.compile(r"\b(early|opening (minutes|exchanges|stages)|en début de match"
+                r"|d'entrée de jeu|premières minutes)\b", re.IGNORECASE),
      lambda minute, half, added: half == 1 and minute <= 25),
 ]
 

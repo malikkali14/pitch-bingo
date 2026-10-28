@@ -14,6 +14,7 @@ import { Strategist } from "./components/Strategist";
 import { feedEntry } from "./feed/templates";
 import type { StrategyAdviceMessage } from "./protocol";
 import { buildRoster } from "./roster";
+import { setLanguage } from "./i18n";
 import { META, ev } from "./test-fixtures";
 
 afterEach(cleanup);
@@ -173,7 +174,18 @@ describe("Setup", () => {
     fireEvent.change(screen.getByLabelText(/Focus player/), { target: { value: "NBA-09" } });
     fireEvent.click(screen.getByRole("button", { name: "Kick off" }));
     expect(onKickoff).toHaveBeenCalledWith({ seed: 2610, profile: { mode: "advanced", club: "KVL",
-      focus_player_id: "NBA-09", handle: "You" } });
+      focus_player_id: "NBA-09", handle: "You", language: "en" } });
+  });
+
+  it("switches to French and sends the language with the profile", () => {
+    const onKickoff = vi.fn();
+    render(<Setup meta={META} seed={2610} onKickoff={onKickoff} />);
+    fireEvent.click(screen.getByLabelText("Français"));
+    expect(screen.getByRole("button", { name: "Coup d'envoi" })).toBeTruthy();
+    expect(screen.getByText("Comment jouer")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Coup d'envoi" }));
+    expect(onKickoff.mock.calls[0][0].profile.language).toBe("fr");
+    setLanguage("en");
   });
 });
 

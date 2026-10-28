@@ -101,6 +101,16 @@ def build_moment(event: dict[str, Any], significance: int, stats: dict[str, Any]
     }
 
 
+def add_imperial(moment: dict[str, Any]) -> None:
+    """Imperial viewers (spec 5.6): code adds mph and yards, so the personalizer can quote them
+    and the verifier finds them in the input."""
+    event = moment["event"]
+    if "ball_speed_kmh" in event:
+        event["ball_speed_mph"] = round(event["ball_speed_kmh"] * 0.621371)
+    if "length_m" in event:
+        event["length_yd"] = round(event["length_m"] * 1.0936)
+
+
 def _named(item: dict[str, Any], names: Names) -> dict[str, Any]:
     out = {}
     for key, value in item.items():

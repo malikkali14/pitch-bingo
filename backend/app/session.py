@@ -26,6 +26,7 @@ from app.agents.orchestrator import Orchestrator
 from app.config import settings
 from app.engine.clock import ReplayClock
 from app.engine.source import Frame, ReplaySource, Rewind, Tick
+from app.game import lang
 from app.game.card import Profile
 from app.game.fans import FanLeague, leaderboard
 from app.game.game import Game
@@ -224,6 +225,9 @@ class MatchSession:
                         item, result.significance, result.triggers, result.milestones,
                         lambda: self.game.redact_stats(self.stats.snapshot()), held,
                         self.stats.core.last_xg if item["type"] == "shot" else None)
+                    if item["type"] not in ("period_start", "period_end"):
+                        self.agents.focus_update(item["t"], item["clock"], item["period"],
+                                                 self.stats.snapshot)
                 self._send(out)
                 if live and item["type"] == "period_end":
                     self.agents.write_recap(self._recap_summary(
@@ -305,11 +309,14 @@ class MatchSession:
         sq = self.game.board.get(square_id)
         if sq is None or sq.result is None:
             return None
+        if sq.opened_at is not None and sq.closes_at == sq.opened_at:
+            return None     # jumped over (dev panel): nobody saw it, the template will do
         names = narrator.Names(self.meta)
         wanted = set(sq.evidence) | set(sq.source_event_ids)
         events = [e for e in self.game.events[-400:] if e["event_id"] in wanted][-6:]
         return {
-            "square_id": sq.id, "question": sq.text.get("en", ""), "kind": sq.kind,
+            "square_id": sq.id, "kind": sq.kind,
+            "question": sq.text.get(self.profile.language) or sq.text.get("en", ""),
             "template": sq.template, "answer": self.game.label(sq, sq.correct_answer),
             "answer_key": sq.correct_answer, "result": sq.result["status"],
             "clock": self.game.events[-1]["clock"] if self.game.events else "00:00",
@@ -336,8 +343,9 @@ class MatchSession:
             standout = {"player": names.player(standout_id), "club": names.club(best["team_id"]),
                         "touches": best["touches"]}
         chaos = snapshot["patterns"]["chaos"]
-        patterns = [f"{names.club(chaos['in_control'])} in control"] if chaos.get("in_control") \
-            else []
+        patterns = [lang.say(self.profile.language, "in_control",
+                             club=names.club(chaos["in_control"]))] \
+            if chaos.get("in_control") else []
         row = next((r for r in leaderboard(self.viewer_row(), self.fans.rows()) if r["you"]), {})
         focus = self.profile.focus_player_id
         return recap.Summary(

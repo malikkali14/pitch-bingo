@@ -11,7 +11,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.game import ranges
+from app.game import lang, ranges
 from app.game.bank import (
     COMMON_DEADLINE,
     DEFAULT_DEADLINES,
@@ -37,6 +37,8 @@ FIRST_DROP_ORDER = ("first_goal", "first_throw_in")
 MAX_PER_TEMPLATE = 2
 MODES = ("normal", "advanced")
 STRATEGIST = ("auto", "suggest", "manual")
+UNITS = ("metric", "imperial")
+MY_METRICS = ("pressing", "possession", "xg", "pass_accuracy", "sprints", "duels")
 RESOLVED = {"correct", "wrong", "too_early", "missed", "void", "wildcard"}
 GOOD = {"correct", "void", "wildcard"}   # what counts toward a line (spec 4.8)
 
@@ -51,6 +53,8 @@ class Profile:
     language: str = "en"
     strategist: str = "auto"
     handle: str = "You"
+    units: str = "metric"
+    my_metric: str | None = None
 
     @classmethod
     def parse(cls, raw: dict[str, Any], meta: dict[str, Any]) -> "Profile":
@@ -69,13 +73,24 @@ class Profile:
         if strategist not in STRATEGIST:
             raise ValueError(f"unknown strategist setting {strategist!r}")
         language = raw.get("language") or "en"
+        if language not in lang.LANGUAGES:
+            raise ValueError(f"unknown language {language!r}")
+        units = raw.get("units") or "metric"
+        if units not in UNITS:
+            raise ValueError(f"unknown units {units!r}")
+        my_metric = raw.get("my_metric") or None
+        if my_metric in ("none",):
+            my_metric = None
+        if my_metric is not None and my_metric not in MY_METRICS:
+            raise ValueError(f"unknown metric {my_metric!r}")
         handle = str(raw.get("handle") or "You")[:24]
-        return cls(mode, club, focus, language, strategist, handle)
+        return cls(mode, club, focus, language, strategist, handle, units, my_metric)
 
     def public(self) -> dict[str, Any]:
         return {"mode": self.mode, "club": self.club or "neutral",
                 "focus_player_id": self.focus_player_id, "language": self.language,
-                "strategist": self.strategist, "handle": self.handle}
+                "strategist": self.strategist, "handle": self.handle, "units": self.units,
+                "my_metric": self.my_metric or "none"}
 
 
 @dataclass
@@ -191,19 +206,28 @@ def _names(meta: dict[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
     return clubs, surnames
 
 
+def option_label(key: str, language: str, clubs: dict[str, str]) -> str:
+    """How an option reads: a club's name, a translated word, or a range like 2–3."""
+    if key in clubs:
+        return clubs[key]
+    words = lang.OPTION_LABELS[lang.normalize(language)]
+    return words.get(key) or ranges.label(key)
+
+
 def _options(template: Template, answer_type: str, deadline_s: int | None,
-             meta: dict[str, Any]) -> tuple[list[str], list[str]]:
+             meta: dict[str, Any]) -> tuple[list[str], dict[str, list[str]]]:
     clubs, _ = _names(meta)
     home, away = meta["home_team_id"], meta["away_team_id"]
     if answer_type == "team":
         keys = [home, away] + (["level"] if template.level else [])
-        return keys, [clubs.get(k, "Level") for k in keys]
-    if answer_type == "yesno":
-        return ["yes", "no"], ["Yes", "No"]
-    if answer_type == "number" and deadline_s is not None:
+    elif answer_type == "yesno":
+        keys = ["yes", "no"]
+    elif answer_type == "number" and deadline_s is not None:
         keys = ranges.option_keys(ranges.cuts_for(template.id, deadline_s))
-        return keys, [ranges.label(k) for k in keys]
-    return [], []
+    else:
+        return [], {}
+    return keys, {language: [option_label(k, language, clubs) for k in keys]
+                  for language in lang.LANGUAGES}
 
 
 def make_static(square_id: str, template: Template, mode: str, cell: Cell,
@@ -214,12 +238,14 @@ def make_static(square_id: str, template: Template, mode: str, cell: Cell,
     exact_number = answer_type == "number" and mode == "advanced"
     options, labels = _options(template, answer_type,
                                None if exact_number else deadline_s, meta)
-    text = template.text.format(m=minute_label(deadline_s) if deadline_s is not None else "",
-                                club=clubs.get(club or "", ""),
-                                player=surnames.get(focus or "", ""))
+    values = {"m": minute_label(deadline_s) if deadline_s is not None else "",
+              "club": clubs.get(club or "", ""), "player": surnames.get(focus or "", "")}
+    # Written for every language when the card is built (spec 5.4).
+    text = {language: lang.QUESTIONS[language].get(template.id, template.text).format(**values)
+            for language in lang.LANGUAGES}
     return Square(
-        id=square_id, kind=template.kind, template=template.id, text={"en": text},
-        answer_type=answer_type, options=options, option_labels={"en": labels} if labels else {},
+        id=square_id, kind=template.kind, template=template.id, text=text,
+        answer_type=answer_type, options=options, option_labels=labels,
         deadline_s=deadline_s, trigger=dict(template.trigger) or None,
         resolver=template.resolver, masks=list(template.masks), cell=cell, state="waiting",
         club=club, focus=focus)

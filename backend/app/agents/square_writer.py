@@ -11,6 +11,7 @@ from typing import Any
 
 from app.agents.messages import LiveSquareDraft
 from app.agents.runner import AgentSpec
+from app.agents.tutor import LANGUAGE_NAMES
 from app.game.live import Wording
 from app.verify.verifier import verify_line, verify_live_square
 
@@ -29,7 +30,8 @@ def prompt(pending: dict[str, Any]) -> str:
     wrong = len(pending["options"]) - 1
     option_set = dict(zip(pending["options"], pending["labels"], strict=True))
     return (f"Write one multiple-choice question about the moment in INPUT\n"
-            f"for {pending['mode']} mode in English, using template {pending['template']}.\n"
+            f"for {pending['mode']} mode in {LANGUAGE_NAMES.get(pending.get('language', 'en'))}, "
+            f"using template {pending['template']}.\n"
             f"The correct answer is {pending['correct']}. Do not change it.\n"
             f"Write up to {wrong} wrong options from the template's option set.\n"
             f"Question under 60 characters. Return JSON matching LiveSquareDraft.\n"

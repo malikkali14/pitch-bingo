@@ -135,6 +135,7 @@ def test_summary_and_explanation_context_from_a_real_match() -> None:
     session.game.on_tick(1000.0)
     context = session._square_context(sq.id, "template")
     assert context is not None and context["result"] == "missed"
+    assert context["question"] == sq.text["en"]
     assert context["answer_key"] == sq.correct_answer and context["template"] == sq.template
 
 
@@ -153,3 +154,14 @@ def test_catch_up_recap_and_definitions_round_trip() -> None:
     assert recap_msg["content"]["headline"].startswith("Catch-up")
     assert definition["term"] == "possession" and definition["ai"] is False
     assert error["request"] == "definition.request"
+
+
+def test_jumped_over_windows_get_no_ai_explanation() -> None:
+    from app.engine.source import MATCHES_DIR, load_match
+    from app.session import MatchSession
+
+    session = MatchSession(2610, {"language": "fr"})
+    for e in load_match(MATCHES_DIR / "2610").events[:200]:
+        session.game.on_event(e, session.stats.on_event(e).significance, live=False)
+    skipped = next(s for s in session.game.board.squares if s.state == "missed")
+    assert session._square_context(skipped.id, "template") is None
