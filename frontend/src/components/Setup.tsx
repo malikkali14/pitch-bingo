@@ -3,6 +3,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { LANGUAGES, getLanguage, setLanguage, t, type Language } from "../i18n";
+import { HowItWorks } from "./HowItWorks";
 import type { MatchMeta, Mode } from "../protocol";
 import type { Kickoff } from "../state/session";
 
@@ -115,14 +116,7 @@ export function Setup({ onKickoff, meta: given, seed: givenSeed }: Props) {
           {t("setup.handle")}
           <input type="text" value={handle} maxLength={24} onChange={(e) => setHandle(e.target.value)} />
         </label>
-        <section className="how" aria-labelledby="how-title">
-          <h3 id="how-title">{t("setup.how")}</h3>
-          <ol>
-            <li>{t("setup.how.1")}</li>
-            <li>{t("setup.how.2")}</li>
-            <li>{t("setup.how.3")}</li>
-          </ol>
-        </section>
+        <HowItWorks />
         <button type="submit" className="primary">{t("setup.kickoff")}</button>
       </form>
     </main>

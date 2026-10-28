@@ -21,6 +21,9 @@ interface Props {
   onDev?(): void;
   /** Surname of the fan's focus player, shown as a profile chip. */
   following?: string;
+  dark?: boolean;
+  onTheme?(): void;
+  onHelp?(): void;
   language?: string;
 }
 
@@ -41,7 +44,7 @@ function MatchClock({ anchor, fullTime, frames }: Pick<Props, "anchor" | "fullTi
 }
 
 export function TopBar(props: Props) {
-  const { roster, score, anchor, fullTime, frames, speed, onSpeed, mode, onMode, devOpen, onDev, following, language } = props;
+  const { roster, score, anchor, fullTime, frames, speed, onSpeed, mode, onMode, devOpen, onDev, following, language, dark, onTheme, onHelp } = props;
   const home = score?.[roster.home.id] ?? 0;
   const away = score?.[roster.away.id] ?? 0;
   return (
@@ -85,6 +88,12 @@ export function TopBar(props: Props) {
             </button>
           ))}
         </div>
+        {onHelp && <button type="button" className="ghost" onClick={onHelp}>{t("how.help")}</button>}
+        {onTheme && (
+          <button type="button" className="ghost" aria-pressed={!!dark} onClick={onTheme}>
+            {dark ? t("theme.light") : t("theme.dark")}
+          </button>
+        )}
         {onDev && (
           <button type="button" className="ghost" aria-pressed={!!devOpen} onClick={onDev}>
             {t("top.dev")}

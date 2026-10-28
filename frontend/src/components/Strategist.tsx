@@ -17,6 +17,7 @@ export function Strategist({ advice, note, onApply }: Props) {
   return (
     <section className="strategist" aria-labelledby="strategist-title" aria-live="polite">
       <h2 id="strategist-title">{t("strategist.title")}</h2>
+      <p className="hint">{t("strategist.hint")}</p>
       {advice ? (
         <>
           <p>{advice.reason}</p>

@@ -248,6 +248,24 @@ describe("definitions and catch-up", () => {
     const content = { headline: "Catch-up: Northbridge 0–0 Kestrel", paragraphs: ["No goals yet."],
       talking_points: ["a", "b", "c"], club_paragraph: null, player_paragraph: null, bingo_summary: null };
     const state = send(ready(), { type: "recap", t: 0, wall: 0, kind: "catch_up", content, ai: false });
-    expect(state.feed[0]).toMatchObject({ entry_id: "recap:catch_up", text: "Catch-up: Northbridge 0–0 Kestrel No goals yet." });
+    expect(state.feed[0]).toMatchObject({ entry_id: "recap:catch_up:1", text: "Catch-up: Northbridge 0–0 Kestrel No goals yet." });
+  });
+
+  it("answers every catch-up request, and the AI version fills the latest line", () => {
+    const content = { headline: "Catch-up", paragraphs: ["No goals yet."],
+      talking_points: ["a", "b", "c"], club_paragraph: null, player_paragraph: null, bingo_summary: null };
+    const recap = (ai: boolean, headline = "Catch-up") =>
+      ({ type: "recap", t: 0, wall: 0, kind: "catch_up", content: { ...content, headline }, ai }) as ServerMessage;
+    const state = send(ready(), recap(false), recap(true, "AI one"), recap(false), recap(true, "AI two"));
+    const lines = state.feed.filter((f) => f.entry_id.startsWith("recap:catch_up:"));
+    expect(lines.map((f) => f.text.split(" ")[0] + f.ai)).toEqual(["AItrue", "AItrue"]);
+    expect(lines).toHaveLength(2);
+  });
+
+  it("keeps the feed in match-minute order when lines arrive late", () => {
+    const ev = (id: string, clock: string) => ({ type: "event", t: 0, wall: 0, held: false, significance: 0,
+      event: { event_id: id, type: "corner", clock, team_id: "t1", t: 0, period: 1 } }) as unknown as ServerMessage;
+    const state = send(ready(), ev("a", "10:00"), ev("b", "30:00"), ev("c", "20:00"));
+    expect(state.feed.map((f) => f.entry_id)).toEqual(["b", "c", "a"]);
   });
 });

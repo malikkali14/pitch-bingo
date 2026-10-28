@@ -120,9 +120,10 @@ export function Card(props: Props) {
           <div><dt>{t("card.bingos")}</dt><dd>{board.bingos}</dd></div>
         </dl>
       </div>
+      <p className="hint">{t("card.hint")}</p>
       {moving && <p className="move-hint" role="status">{t("card.move_pick")}</p>}
       {blocked && <p className="move-hint" role="status">{t("card.move_blocked")}</p>}
-      <div className="grid" role="grid" aria-labelledby="card-title" onKeyDown={onKey}>
+      <div className="grid keep-light" role="grid" aria-labelledby="card-title" onKeyDown={onKey}>
         {[0, 1, 2, 3, 4].map((row) => (
           <div key={row} role="row" className="grid-row">
             {[0, 1, 2, 3, 4].map((col) => {

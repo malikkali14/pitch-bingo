@@ -3,6 +3,8 @@ import { announcedOpen } from "./card/rules";
 import { canAnswer } from "./components/AnswerPopover";
 import { Card } from "./components/Card";
 import { DevPanel } from "./components/DevPanel";
+import { Fold } from "./components/Fold";
+import { HowItWorks } from "./components/HowItWorks";
 import { Feed } from "./components/Feed";
 import { FullTime } from "./components/FullTime";
 import { Leaderboard } from "./components/Leaderboard";
@@ -12,7 +14,7 @@ import { Pitch } from "./components/Pitch";
 import { Setup } from "./components/Setup";
 import { Strategist } from "./components/Strategist";
 import { TopBar, type Mode } from "./components/TopBar";
-import { useChime, usePrefersReducedMotion } from "./hooks";
+import { useChime, usePrefersReducedMotion, useTheme } from "./hooks";
 import { t } from "./i18n";
 import { maskedTags } from "./state/match";
 import { useMatchSession, type Kickoff } from "./state/session";
@@ -36,6 +38,8 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
   const [fullTimeClosed, setFullTimeClosed] = useState(false);
   const [noticeShown, setNoticeShown] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [dark, toggleTheme] = useTheme();
   const reducedMotion = usePrefersReducedMotion();
   const { roster, board, profile } = state;
   useChime(state.announcement, muted);
@@ -72,7 +76,8 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
       <TopBar roster={roster} score={state.stats?.score} anchor={state.anchor} fullTime={state.fullTime}
         frames={frames} speed={state.speed} onSpeed={setSpeed} mode={mode} onMode={setMode}
         devOpen={devOpen} onDev={() => setDevOpen((o) => !o)}
-        following={focusPlayer?.surname} language={language} />
+        following={focusPlayer?.surname} language={language}
+        dark={dark} onTheme={toggleTheme} onHelp={() => setHelpOpen(true)} />
       {devOpen && (
         <DevPanel health={state.health} paused={state.paused} narratorDown={state.narratorDown}
           onPause={dev.pause} onJump={dev.jump} onNarratorDown={dev.narratorDown} />
@@ -97,11 +102,24 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
             answers={state.answers} advice={state.advice} selected={selected} onSelect={setSelected}
             onAnswer={answer} onMove={move} />
           <Strategist advice={state.advice} note={state.strategistNote} onApply={applyAdvice} />
-          <Metrics roster={roster} stats={state.stats} xg={state.xg} mode={mode}
-            definition={state.definition} onDefine={define} />
-          <Leaderboard rows={state.leaderboard} mode={profile.mode} />
+          <Fold id="metrics" title={t("metrics.title")} hint={t("metrics.hint")}>
+            <Metrics roster={roster} stats={state.stats} xg={state.xg} mode={mode}
+              definition={state.definition} onDefine={define} />
+          </Fold>
+          <Fold id="leaderboard" title={t("leaderboard.title")} hint={t("leaderboard.hint")}>
+            <Leaderboard rows={state.leaderboard} mode={profile.mode} />
+          </Fold>
         </div>
       </main>
+      {helpOpen && (
+        <div className="fulltime-backdrop" onClick={() => setHelpOpen(false)}>
+          <div className="fulltime" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key === "Escape" && setHelpOpen(false)}>
+            <HowItWorks />
+            <button type="button" className="primary" onClick={() => setHelpOpen(false)}>{t("how.close")}</button>
+          </div>
+        </div>
+      )}
       {showFullTime && (
         <FullTime roster={roster} score={state.stats?.score} board={board} moments={state.moments}
           leaderboard={state.leaderboard} total={state.ranked} mode={profile.mode}
