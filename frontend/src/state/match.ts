@@ -3,11 +3,14 @@
 
 import type { Board, Square } from "../card/types";
 import { minuteLabel, type ClockAnchor } from "../clock";
-import { feedEntry, type FeedEntry } from "../feed/templates";
-import { t } from "../i18n";
+import { feedEntry, iconFor, type FeedEntry } from "../feed/templates";
+import { has, t } from "../i18n";
 import type {
   EventMessage,
+  FeedReplaceMessage,
+  HealthMessage,
   LeaderboardRow,
+  RecapMessage,
   MatchEvent,
   MatchMeta,
   Profile,
@@ -75,6 +78,11 @@ export interface MatchState {
   notice: Notice | null;
   announcement: string; // read out by screen readers when an announced window opens
   moments: Moment[];
+  health: HealthMessage | null;
+  recaps: Partial<Record<RecapMessage["kind"], RecapMessage>>;
+  definition: { term: string; text: string; ai: boolean } | null;
+  paused: boolean;
+  narratorDown: boolean;
 }
 
 export const initialState: MatchState = {
@@ -104,6 +112,11 @@ export const initialState: MatchState = {
   notice: null,
   announcement: "",
   moments: [],
+  health: null,
+  recaps: {},
+  definition: null,
+  paused: false,
+  narratorDown: false,
 };
 
 export type Action =
@@ -111,7 +124,9 @@ export type Action =
   | { kind: "status"; status: Status }
   | { kind: "speed"; speed: Speed }
   | { kind: "answer"; squareId: string; value: string }
-  | { kind: "moved" };
+  | { kind: "moved" }
+  | { kind: "dev"; paused?: boolean; narratorDown?: boolean }
+  | { kind: "define"; term: string | null };
 
 export function matchReducer(state: MatchState, action: Action): MatchState {
   switch (action.kind) {
@@ -123,6 +138,12 @@ export function matchReducer(state: MatchState, action: Action): MatchState {
       return { ...state, pending: { ...state.pending, [action.squareId]: action.value } };
     case "moved":
       return { ...state, advice: null };
+    case "define":
+      return { ...state, definition: action.term === null ? null
+        : { term: action.term, text: "", ai: false } };
+    case "dev":
+      return { ...state, paused: action.paused ?? state.paused,
+        narratorDown: action.narratorDown ?? state.narratorDown };
     case "message":
       return onMessage(state, action.msg, action.now);
   }
@@ -145,6 +166,7 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
         profile: msg.profile,
         speed: msg.speed,
         board: msg.card,
+        paused: msg.paused,
       };
     case "event":
       return onEvent(state, msg, now);
@@ -161,6 +183,8 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
     }
     case "feed.reveal":
       return reveal(state, msg.entry_ids);
+    case "feed.replace":
+      return replaceLine(state, msg);
     case "square.window_open": {
       const square = state.board?.squares.find((s) => s.id === msg.square_id);
       const next = updateSquare(state, msg.square_id, { state: "open", closes_at: msg.closes_at });
@@ -190,7 +214,13 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
       return { ...next, pending, answers: { ...state.answers, [msg.square_id]: msg.correct_answer } };
     }
     case "square.explanation":
-      return explain(state, msg.square_id, msg.text);
+      return explain(state, msg.square_id, msg.text, !!msg.ai);
+    case "recap":
+      return onRecap(state, msg);
+    case "definition":
+      // Only the term the viewer asked about; never let a stored line replace the tutor's.
+      if (state.definition?.term !== msg.term || (state.definition.ai && !msg.ai)) return state;
+      return { ...state, definition: { term: msg.term, text: msg.text, ai: msg.ai } };
     case "board.update": {
       const { squares, scored_lines, points, correct, bingos, full_card } = msg;
       return { ...state, board: { squares, scored_lines, points, correct, bingos, full_card } };
@@ -204,6 +234,8 @@ function onMessage(state: MatchState, msg: ServerMessage, now: number): MatchSta
       return msg.applied
         ? { ...state, advice: null, strategistNote: msg.reason }
         : { ...state, advice: msg, strategistNote: null };
+    case "health":
+      return { ...state, health: msg, narratorDown: msg.agents.narrator?.breaker === "forced" };
     case "leaderboard":
       return { ...state, leaderboard: msg.rows, ranked: msg.total };
     case "error": {
@@ -260,6 +292,22 @@ function topMoments(moments: Moment[], event: MatchEvent, significance: number, 
     .slice(0, MOMENTS);
 }
 
+function replaceLine(state: MatchState, msg: FeedReplaceMessage): MatchState {
+  const patch = { text: msg.text, ai: true };
+  if (state.feed.some((f) => f.entry_id === msg.entry_id)) {
+    return { ...state, feed: state.feed.map((f) => (f.entry_id === msg.entry_id ? { ...f, ...patch } : f)) };
+  }
+  const held = state.held[msg.entry_id];
+  if (held) return { ...state, held: { ...state.held, [msg.entry_id]: { ...held, ...patch } } };
+  const kind = msg.event_type.startsWith("period") ? "period" : msg.event_type;
+  const entry: FeedEntry = {
+    entry_id: msg.entry_id, minute: minuteLabel(msg.clock), icon: iconFor(msg.event_type),
+    text: msg.text, tag: has(`tag.${kind}`) ? t(`tag.${kind}`) : t("tag.moment"), ai: true, tags: [],
+  };
+  if (msg.held) return { ...state, held: { ...state.held, [msg.entry_id]: entry } };
+  return { ...state, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+}
+
 function reveal(state: MatchState, ids: string[]): MatchState {
   const held = { ...state.held };
   const revealed: FeedEntry[] = [];
@@ -273,19 +321,40 @@ function reveal(state: MatchState, ids: string[]): MatchState {
   return { ...state, held, feed: [...revealed.reverse(), ...state.feed].slice(0, FEED_LIMIT) };
 }
 
-function explain(state: MatchState, squareId: string, text: string): MatchState {
-  const next = updateSquare(state, squareId, {});
-  const entry: FeedEntry = {
+function explain(state: MatchState, squareId: string, text: string, ai: boolean): MatchState {
+  return upsertLine(state, {
     entry_id: `explain:${squareId}`,
     minute: state.anchor ? minuteLabel(state.anchor.clock) : "",
     icon: "💡",
     text,
     tag: t("tag.answer"),
-    ai: false,
+    ai,
     tags: [],
-  };
-  if (state.feed.some((f) => f.entry_id === entry.entry_id)) return next;
-  return { ...next, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+  });
+}
+
+/** Adds a line, or replaces one with the same id in place (an AI version of a template). */
+function upsertLine(state: MatchState, entry: FeedEntry): MatchState {
+  const existing = state.feed.find((f) => f.entry_id === entry.entry_id);
+  if (!existing) return { ...state, feed: [entry, ...state.feed].slice(0, FEED_LIMIT) };
+  if (existing.ai && !entry.ai) return state;          // never downgrade an AI line
+  return { ...state, feed: state.feed.map((f) => (f.entry_id === entry.entry_id ? { ...entry, minute: f.minute } : f)) };
+}
+
+function onRecap(state: MatchState, msg: RecapMessage): MatchState {
+  const current = state.recaps[msg.kind];
+  if (current?.ai && !msg.ai) return state;
+  const next = { ...state, recaps: { ...state.recaps, [msg.kind]: msg } };
+  if (msg.kind !== "halftime" && msg.kind !== "catch_up") return next;
+  return upsertLine(next, {
+    entry_id: `recap:${msg.kind}`,
+    minute: state.anchor ? minuteLabel(state.anchor.clock) : "45'",
+    icon: "📋",
+    text: [msg.content.headline, msg.content.paragraphs[0]].filter(Boolean).join(" "),
+    tag: t("tag.recap"),
+    ai: msg.ai,
+    tags: [],
+  });
 }
 
 function onStats(state: MatchState, msg: StatsMessage): MatchState {

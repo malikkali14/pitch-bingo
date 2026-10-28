@@ -12,7 +12,9 @@ dependencies = [
     "uvicorn[standard]",
     "pydantic",
     "numpy",
-    "agent-framework-foundry",
+    # Pinned to the versions tested (spec 10.2).
+    "agent-framework-core==1.23.0",
+    "agent-framework-foundry==1.15.0",
     "azure-identity",
     "azure-cosmos",
     "azure-monitor-opentelemetry>=1.8.10,<2",

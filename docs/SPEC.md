@@ -723,19 +723,21 @@ Model output always passes the verifier before it reaches the screen, and a temp
 | Stats engine | Code | Every event | Stats, patterns, significance | 20 ms | None needed |
 | Scorekeeper | Code | Windows, answers, moves | Results, points, lines, leaderboard | 20 ms | None needed |
 | Verifier | Code | Every LLM output | Pass, or a list of errors | 10 ms | None needed |
-| Narrator | LLM | Significance 40 or more, pattern triggers | Language-neutral insight | 2 s | Template line |
-| Personalizer | LLM | Each insight, per profile | Final text in mode, club, language | 1.5 s | Template rendering |
+| Narrator | LLM | Significance 40 or more, pattern triggers | Language-neutral insight | 3 s | Template line |
+| Personalizer | LLM | Each insight, per profile | Final text in mode, club, language | 2 s | Template rendering |
 | Rules tutor | LLM | Normal-mode window closes, definition taps | One or two lines on the rule | 3 s | Stored rule summary |
-| Square writer | LLM | Pre-match card build, live-square moments | Square wording and wrong options | 1.5 s | Template wording |
-| Strategist | Code plus LLM | After results and moves | Moves and a one-line reason | 2 s | Template reason |
+| Square writer | LLM | Pre-match card build, live-square moments | Square wording and wrong options | 2 s | Template wording |
+| Strategist | Code plus LLM | After results and moves | Moves and a one-line reason | 3 s | Template reason |
 | Recap | LLM | Halftime, full time, catch-up request | Recaps and studio talking points | 20 s | Template recap from stats |
+
+Budgets were set on Oct 27 from calls to the real Foundry endpoint: the slowest measured call per agent, rounded up, per attempt. gpt-4.1-mini is the only fast model this subscription can run, so speed comes from budgets and prompts, not a model swap. The tutor, narrator context and strategist first measured 6 s or more because the gpt-4.1-mini deployment (capacity 10) was throttling. At capacity 100 they took 1.0–2.3 s at most, so their budgets are 3 s, as are narrator context (the advanced-mode explanation) and definitions.
 
 Simulated fans for the leaderboard are code too: each fan has an accuracy and a typical answer time, and answers every window through the scorekeeper.
 
 ### 8.2 Models
 
-- Real-time agents (narrator, personalizer, square writer, strategist): gpt-4.1-mini (decided). Measured from the dev machine on Oct 25: 1.6, 1.7 and 2.2 seconds per call, against 3.1 to 7.0 seconds for gpt-5-mini. The 20-second answer windows and live feed need the faster one.
-- Recap and rules tutor: gpt-5-mini, where quality matters more than speed.
+- Real-time agents (narrator, personalizer, square writer, strategist) and the rules tutor: gpt-4.1-mini (decided). Measured from the dev machine on Oct 25: 1.6, 1.7 and 2.2 seconds per call, against 3.1 to 7.0 seconds for gpt-5-mini. The 20-second answer windows and live feed need the faster one.
+- Recap: gpt-5-mini, where quality matters more than speed. The rules tutor moved to gpt-4.1-mini on Oct 27: it rephrases a stored rule summary, so it needs no reasoning, and against the real endpoint it took about 1.1–3 s on gpt-4.1-mini against about 12.5 s on gpt-5-mini. gpt-4.1-nano and gpt-4o-mini have no quota on this subscription, Mistral and Llama models can't be bought on a free subscription, and Phi-4-mini ignores the JSON schema.
 - One Foundry project, one or two model deployments. Section 11 has the commands.
 
 ### 8.3 Shared match state
@@ -755,6 +757,8 @@ Each is an Agent Framework workflow: typed executors joined by edges, with agent
 4. **Recap workflow:** State summary (code) → Recap agent → Verifier → Personalizer → Publisher.
 
 The Publisher is a code executor that writes to the session and pushes WebSocket messages (section 9).
+
+As built: each agent step runs its own call, verifier check and one retry with the error list, then a Verifier executor re-checks the final text as the last gate before the Publisher. In the window-close workflow the personalizer leads the explanation with the viewer's club or focus player, and neutral viewers pass straight through; in the recap workflow it passes through in English, since the recap agent already writes the club and player paragraphs, and renders other languages in phase 7. A live square is placed and masked at once, and its window opens when the square writer's wording arrives, within its 2-second budget, or with the template wording.
 
 ### 8.5 Messages between steps
 
@@ -896,6 +900,7 @@ Every message is JSON with type, t (match seconds) and wall (server time in ms).
 | leaderboard | rows for the viewer's mode |
 | overlay | one overlay message (9.5) |
 | recap | kind, content |
+| definition | term, text, ai: a one-line explanation of a tapped stat or call (5.1), stored text first, then the rules tutor's |
 | health | agent status, breaker state, latency |
 
 **Browser to server**
@@ -908,6 +913,7 @@ Every message is JSON with type, t (match seconds) and wall (server time in ms).
 | board.move | from\_cell, to\_cell |
 | strategy.apply | advice\_id |
 | recap.request | kind catch\_up |
+| definition.request | term (a stat or call, for example possession or offside) |
 | dev.narrator\_down | on or off |
 | dev.pause | on or off |
 | dev.jump | t |
@@ -1032,7 +1038,7 @@ Microsoft Foundry supplies the models and guardrails, Microsoft Agent Framework 
 ### 10.1 Microsoft Foundry
 
 - One Foundry resource with one project. The project endpoint looks like https://{resource}.services.ai.azure.com/api/projects/{project}.
-- Deployments: gpt-4.1-mini for the real-time agents and gpt-5-mini for recaps and the rules tutor (section 8.2).
+- Deployments: gpt-4.1-mini for the real-time agents and the rules tutor, and gpt-5-mini for recaps (section 8.2).
 - **Guardrails.** New deployments get Microsoft's default guardrail, which uses Azure AI Content Safety classifiers on prompts and outputs. Keep it on and say so in the README. It sits beside the verifier: guardrails catch harmful content, the verifier catches wrong numbers and names.
 - **Tracing.** Connect the project to the same Application Insights resource as the app, and the agent spans appear in Foundry's trace view.
 - The roles were recently renamed. The app's identity needs **Foundry User** (formerly Azure AI User) on the project.
@@ -1232,7 +1238,7 @@ The dashboard UI is then at http://localhost:18888.
 | --- | --- | --- |
 | FOUNDRY\_PROJECT\_ENDPOINT | https://pitchbingo-foundry-xyz.services.ai.azure.com/api/projects/pitchbingo | From 11.2 |
 | FOUNDRY\_MODEL\_FAST | gpt-4.1-mini | Deployment name for real-time agents |
-| FOUNDRY\_MODEL\_QUALITY | gpt-5-mini | Recap and rules tutor |
+| FOUNDRY\_MODEL\_QUALITY | gpt-5-mini | Recap |
 | STORAGE | memory or cosmos |  |
 | COSMOS\_ENDPOINT | https://pitchbingo-cosmos-xyz.documents.azure.com:443/ | When STORAGE is cosmos |
 | COSMOS\_DATABASE | pitchbingo |  |

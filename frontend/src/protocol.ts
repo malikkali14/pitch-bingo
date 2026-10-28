@@ -182,6 +182,24 @@ export interface SquareExplanationMessage extends Envelope {
   type: "square.explanation";
   square_id: string;
   text: string;
+  ai?: boolean; // the rules tutor's or narrator's version, replacing the template one
+}
+
+export interface RecapContent {
+  headline: string;
+  paragraphs: string[];
+  talking_points: string[];
+  club_paragraph: string | null;
+  player_paragraph: string | null;
+  bingo_summary: string | null;
+}
+
+/** Half-time and full-time recaps (spec 8.6, 9.4): a template first, the AI version after. */
+export interface RecapMessage extends Envelope {
+  type: "recap";
+  kind: "halftime" | "full_time" | "catch_up" | "bingo";
+  content: RecapContent;
+  ai: boolean;
 }
 
 export interface BoardUpdateMessage extends Envelope, Board {
@@ -231,9 +249,52 @@ export interface LeaderboardMessage extends Envelope {
   total: number; // everyone ranked: you plus the simulated fans
 }
 
+/** An AI line for a moment (spec 9.4 feed.replace): it replaces the template line with the
+ * same entry_id, or adds a line where the moment had none. */
+export interface FeedReplaceMessage extends Envelope {
+  type: "feed.replace";
+  entry_id: string;
+  text: string;
+  ai: true;
+  clock: string;
+  event_type: string;
+  held: boolean;
+}
+
 export interface FeedRevealMessage extends Envelope {
   type: "feed.reveal";
   entry_ids: string[];
+}
+
+export interface AgentHealth {
+  calls: number;
+  ai: number;
+  fallbacks: number;
+  timeouts: number;
+  errors: number;
+  verifier_failures: number;
+  per_minute: number;
+  latency_ms: number | null;
+  breaker: "closed" | "open" | "half_open" | "forced";
+  trips: number;
+  skipped: number;
+}
+
+/** Agent status for the dev panel (spec 3, 9.4). */
+export interface HealthMessage extends Envelope {
+  type: "health";
+  online: boolean;
+  agents: Record<string, AgentHealth>;
+  llm_calls_per_minute: number;
+  events_per_minute: number;
+}
+
+/** A one-line explanation of a stat or call (spec 5.1): stored first, the tutor's after. */
+export interface DefinitionMessage extends Envelope {
+  type: "definition";
+  term: string;
+  text: string;
+  ai: boolean;
 }
 
 export interface ErrorMessage extends Envelope {
@@ -258,6 +319,10 @@ export type ServerMessage =
   | StrategyAdviceMessage
   | LeaderboardMessage
   | FeedRevealMessage
+  | FeedReplaceMessage
+  | HealthMessage
+  | RecapMessage
+  | DefinitionMessage
   | ErrorMessage;
 
 export const SPEEDS = [1, 5, 10] as const;
@@ -270,4 +335,7 @@ export type ClientMessage =
   | { type: "strategy.apply"; advice_id: string }
   | { type: "profile.set"; strategist?: StrategistSetting; handle?: string; language?: string }
   | { type: "dev.pause"; on: boolean }
-  | { type: "dev.jump"; t: number };
+  | { type: "dev.jump"; t?: number; minute?: number }
+  | { type: "dev.narrator_down"; on: boolean }
+  | { type: "recap.request"; kind: "catch_up" }
+  | { type: "definition.request"; term: string };

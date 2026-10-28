@@ -1,6 +1,6 @@
 // Starts a session (POST /api/sessions) and streams its WebSocket (spec 9.3, 9.4).
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type { Cell } from "../card/types";
 import type { ClientMessage, Profile, ServerMessage, Speed } from "../protocol";
 import { FrameStore } from "./frames";
@@ -22,6 +22,13 @@ export interface MatchSession {
   answer(squareId: string, value: string): void;
   move(from: Cell, to: Cell): void;
   applyAdvice(adviceId: string): void;
+  catchUp(): void;
+  define(term: string | null): void;
+  dev: {
+    pause(on: boolean): void;
+    jump(minute: number): void;
+    narratorDown(on: boolean): void;
+  };
 }
 
 export function socketUrl(sessionId: string, location: Location = window.location): string {
@@ -106,5 +113,23 @@ export function useMatchSession(kickoff: Kickoff | null): MatchSession {
     [send],
   );
 
-  return { state, frames, setSpeed, send, answer, move, applyAdvice };
+  const dev = useMemo(() => ({
+    pause: (on: boolean) => {
+      send({ type: "dev.pause", on });
+      dispatch({ kind: "dev", paused: on });
+    },
+    jump: (minute: number) => send({ type: "dev.jump", minute }),
+    narratorDown: (on: boolean) => {
+      send({ type: "dev.narrator_down", on });
+      dispatch({ kind: "dev", narratorDown: on });
+    },
+  }), [send]);
+
+  const catchUp = useCallback(() => send({ type: "recap.request", kind: "catch_up" }), [send]);
+  const define = useCallback((term: string | null) => {
+    dispatch({ kind: "define", term });
+    if (term !== null) send({ type: "definition.request", term });
+  }, [send]);
+
+  return { state, frames, setSpeed, send, answer, move, applyAdvice, catchUp, define, dev };
 }

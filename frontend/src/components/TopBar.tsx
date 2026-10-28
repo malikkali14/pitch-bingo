@@ -17,6 +17,8 @@ interface Props {
   onSpeed(speed: Speed): void;
   mode: Mode;
   onMode(mode: Mode): void;
+  devOpen?: boolean;
+  onDev?(): void;
 }
 
 export function halfLabel(anchor: ClockAnchor | null, fullTime: boolean): string {
@@ -36,7 +38,7 @@ function MatchClock({ anchor, fullTime, frames }: Pick<Props, "anchor" | "fullTi
 }
 
 export function TopBar(props: Props) {
-  const { roster, score, anchor, fullTime, frames, speed, onSpeed, mode, onMode } = props;
+  const { roster, score, anchor, fullTime, frames, speed, onSpeed, mode, onMode, devOpen, onDev } = props;
   const home = score?.[roster.home.id] ?? 0;
   const away = score?.[roster.away.id] ?? 0;
   return (
@@ -76,6 +78,11 @@ export function TopBar(props: Props) {
             </button>
           ))}
         </div>
+        {onDev && (
+          <button type="button" className="ghost" aria-pressed={!!devOpen} onClick={onDev}>
+            {t("top.dev")}
+          </button>
+        )}
       </div>
     </header>
   );

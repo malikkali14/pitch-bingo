@@ -110,6 +110,15 @@ class Moment:
     fallback: bool = False
 
 
+@dataclass(frozen=True)
+class Wording:
+    """How a live square reads, from the square writer (phase 6); the answer stays code's."""
+
+    text: str
+    options: list[str]
+    labels: list[str]
+
+
 @dataclass
 class LiveSpec:
     template: str

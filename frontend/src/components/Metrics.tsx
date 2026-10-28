@@ -12,6 +12,8 @@ interface Props {
   stats: StatsMessage | null;
   xg: XgPoint[];
   mode: Mode;
+  definition?: { term: string; text: string; ai: boolean } | null;
+  onDefine?(term: string | null): void;
 }
 
 const dash = "–";
@@ -21,7 +23,17 @@ const num = (v: number | null | undefined, digits = 0, unit = "") =>
 const shown = (v: number | null | undefined, text: (v: number) => string = String) =>
   v === null || v === undefined ? t("metrics.hidden") : text(v);
 
-export function Metrics({ roster, stats, xg, mode }: Props) {
+/** Normal mode: tap a stat's name for a one-line explanation (spec 5.1). */
+function Term({ term, label, onDefine }: { term: string; label: string; onDefine?(term: string): void }) {
+  if (!onDefine) return <>{label}</>;
+  return (
+    <button type="button" className="term" onClick={() => onDefine(term)}
+      aria-label={t("metrics.define", { stat: label })}>{label}</button>
+  );
+}
+
+export function Metrics({ roster, stats, xg, mode, definition, onDefine }: Props) {
+  const define = mode === "normal" ? onDefine : undefined;
   if (!stats) {
     return (
       <section className="metrics" aria-labelledby="metrics-title">
@@ -38,18 +50,20 @@ export function Metrics({ roster, stats, xg, mode }: Props) {
   const cards = (c: typeof home) => shown(c.yellow_cards, (n) => `${n} / ${c.red_cards}`);
   const tilt = (id: string) => masked.has("possession")
     ? t("metrics.hidden") : num(pressure[id]?.field_tilt, 0, "%");
-  const rows: [string, string, string][] = [
-    [t("metrics.shots"), shots(home), shots(away)],
-    [t("metrics.corners"), shown(home.corners), shown(away.corners)],
-    [t("metrics.fouls"), shown(home.fouls), shown(away.fouls)],
-    [t("metrics.cards"), cards(home), cards(away)],
+  const rows: [string, string, string, string][] = [
+    [t("metrics.shots"), shots(home), shots(away), "shots"],
+    [t("metrics.corners"), shown(home.corners), shown(away.corners), "corners"],
+    [t("metrics.fouls"), shown(home.fouls), shown(away.fouls), "fouls"],
+    [t("metrics.cards"), cards(home), cards(away), "cards"],
   ];
   if (mode === "advanced") {
     rows.push(
-      [t("metrics.xg"), shown(home.xg, (n) => n.toFixed(2)), shown(away.xg, (n) => n.toFixed(2))],
-      [t("metrics.pass_accuracy"), num(home.pass_accuracy, 0, "%"), num(away.pass_accuracy, 0, "%")],
-      [t("metrics.ppda"), num(pressure[roster.home.id]?.ppda, 1), num(pressure[roster.away.id]?.ppda, 1)],
-      [t("metrics.field_tilt"), tilt(roster.home.id), tilt(roster.away.id)],
+      [t("metrics.xg"), shown(home.xg, (n) => n.toFixed(2)), shown(away.xg, (n) => n.toFixed(2)), "xg"],
+      [t("metrics.pass_accuracy"), num(home.pass_accuracy, 0, "%"), num(away.pass_accuracy, 0, "%"),
+        "pass_accuracy"],
+      [t("metrics.ppda"), num(pressure[roster.home.id]?.ppda, 1), num(pressure[roster.away.id]?.ppda, 1),
+        "ppda"],
+      [t("metrics.field_tilt"), tilt(roster.home.id), tilt(roster.away.id), "field_tilt"],
     );
   }
   return (
@@ -66,15 +80,32 @@ export function Metrics({ roster, stats, xg, mode }: Props) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(([label, h, a]) => (
+          {rows.map(([label, h, a, term]) => (
             <tr key={label}>
-              <th scope="row">{label}</th>
+              <th scope="row"><Term term={term} label={label} onDefine={define} /></th>
               <td>{h}</td>
               <td>{a}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {define && (
+        <p className="terms small">
+          {t("metrics.explain")}{" "}
+          {(["possession", "momentum", "chaos"] as const).map((term) => (
+            <Term key={term} term={term} label={t(`metrics.${term}`)} onDefine={define} />
+          ))}
+        </p>
+      )}
+      {definition && (
+        <div className="definition" role="status">
+          <p>
+            <strong>{definition.term.replace(/_/g, " ")}:</strong>{" "}
+            {definition.text || "…"} {definition.ai && <span className="ai">{t("feed.ai")}</span>}
+          </p>
+          <button type="button" className="ghost" onClick={() => onDefine?.(null)}>{t("card.close")}</button>
+        </div>
+      )}
       <Momentum value={stats.patterns.momentum.value} roster={roster} />
       <ChaosMeter value={stats.patterns.chaos.value} inControl={roster.team(stats.patterns.chaos.in_control)?.short_name} />
       {mode === "advanced" && (

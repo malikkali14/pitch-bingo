@@ -51,6 +51,11 @@ function textKey(e: MatchEvent): string | null {
   }
 }
 
+/** The icon for an event type, with a plain marker for moments that have no template. */
+export function iconFor(type: string): string {
+  return ICONS[type.startsWith("period") ? "period" : type] ?? "•";
+}
+
 export function feedEntry(e: MatchEvent, roster: Roster): FeedEntry | null {
   const key = textKey(e);
   if (!key || !has(key)) return null;

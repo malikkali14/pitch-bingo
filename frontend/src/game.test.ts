@@ -177,3 +177,77 @@ describe("game reducer", () => {
     expect(state.ranked).toBe(21);
   });
 });
+
+describe("AI feed lines", () => {
+  const replace = (id: string, held = false): ServerMessage => ({
+    type: "feed.replace", t: 30, wall: 0, entry_id: id, text: "AI line.", ai: true,
+    clock: "00:30", event_type: "pressure", held,
+  });
+
+  it("replaces a template line in place and marks it AI", () => {
+    const corner = ev("corner", { clock: "00:30" });
+    let state = send(ready(), { type: "event", t: 30, wall: 0, event: corner, significance: 45, held: false });
+    state = send(state, replace(corner.event_id));
+    expect(state.feed).toHaveLength(1);
+    expect(state.feed[0]).toMatchObject({ entry_id: corner.event_id, text: "AI line.", ai: true, tag: "Corner" });
+  });
+
+  it("adds a line for a moment with no template, and keeps a held one back", () => {
+    let state = send(ready(), replace("e9"));
+    expect(state.feed[0]).toMatchObject({ entry_id: "e9", minute: "1'", tag: "Moment", ai: true });
+    state = send(state, replace("e10", true));
+    expect(state.feed.map((f) => f.entry_id)).toEqual(["e9"]);
+    state = send(state, { type: "feed.reveal", t: 50, wall: 0, entry_ids: ["e10"] });
+    expect(state.feed[0]).toMatchObject({ entry_id: "e10", text: "AI line.", tag: "Revealed" });
+  });
+
+  it("updates a held template line so the reveal shows the AI text", () => {
+    const foul = ev("foul", { tags: ["fouls"] });
+    let state = send(ready(), { type: "event", t: 10, wall: 0, event: foul, significance: 45, held: true });
+    state = send(state, replace(foul.event_id, true),
+      { type: "feed.reveal", t: 40, wall: 0, entry_ids: [foul.event_id] });
+    expect(state.feed[0]).toMatchObject({ text: "AI line.", ai: true, revealed: true });
+  });
+});
+
+describe("explanations and recaps", () => {
+  it("replaces a template explanation with the AI one, never the other way", () => {
+    const base = { type: "square.explanation", t: 0, wall: 0, square_id: "sq_01" } as const;
+    let state = send(ready(), { ...base, text: "Template." }, { ...base, text: "Tutor line.", ai: true });
+    expect(state.feed.map((f) => [f.text, f.ai])).toEqual([["Tutor line.", true]]);
+    state = send(state, { ...base, text: "Template." });
+    expect(state.feed[0].text).toBe("Tutor line.");
+  });
+
+  it("posts the half-time recap to the feed and keeps the full-time one for the screen", () => {
+    const content = { headline: "Half-time: Northbridge 1–0 Kestrel", paragraphs: ["Goals: Arvel."],
+      talking_points: ["a", "b", "c"], club_paragraph: null, player_paragraph: null, bingo_summary: null };
+    let state = send(ready(), { type: "recap", t: 0, wall: 0, kind: "halftime", content, ai: false });
+    expect(state.feed[0]).toMatchObject({ entry_id: "recap:halftime", tag: "Recap",
+      text: "Half-time: Northbridge 1–0 Kestrel Goals: Arvel." });
+    state = send(state, { type: "recap", t: 0, wall: 0, kind: "full_time", content, ai: true });
+    expect(state.recaps.full_time?.ai).toBe(true);
+    state = send(state, { type: "recap", t: 0, wall: 0, kind: "full_time", content, ai: false });
+    expect(state.recaps.full_time?.ai).toBe(true);
+  });
+});
+
+describe("definitions and catch-up", () => {
+  it("shows the stored definition, then the tutor's, only for the term asked", () => {
+    let state = matchReducer(ready(), { kind: "define", term: "ppda" });
+    state = send(state,
+      { type: "definition", t: 0, wall: 0, term: "xg", text: "Other.", ai: false },
+      { type: "definition", t: 0, wall: 0, term: "ppda", text: "Stored.", ai: false },
+      { type: "definition", t: 0, wall: 0, term: "ppda", text: "Tutor.", ai: true },
+      { type: "definition", t: 0, wall: 0, term: "ppda", text: "Stored.", ai: false });
+    expect(state.definition).toEqual({ term: "ppda", text: "Tutor.", ai: true });
+    expect(matchReducer(state, { kind: "define", term: null }).definition).toBeNull();
+  });
+
+  it("posts a catch-up recap to the feed", () => {
+    const content = { headline: "Catch-up: Northbridge 0–0 Kestrel", paragraphs: ["No goals yet."],
+      talking_points: ["a", "b", "c"], club_paragraph: null, player_paragraph: null, bingo_summary: null };
+    const state = send(ready(), { type: "recap", t: 0, wall: 0, kind: "catch_up", content, ai: false });
+    expect(state.feed[0]).toMatchObject({ entry_id: "recap:catch_up", text: "Catch-up: Northbridge 0–0 Kestrel No goals yet." });
+  });
+});

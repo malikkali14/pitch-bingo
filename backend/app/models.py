@@ -26,8 +26,18 @@ class DevPause(BaseModel):
 
 
 class DevJump(BaseModel):
+    """Jump to match second t, or to a display-clock minute (45 and over is the second half)."""
+
     type: Literal["dev.jump"]
-    t: float = Field(ge=0)
+    t: float | None = Field(default=None, ge=0)
+    minute: float | None = Field(default=None, ge=0, le=130)
+
+
+class DevNarratorDown(BaseModel):
+    """The failure switch: force the narrator's circuit breaker open (spec 3, 8.8)."""
+
+    type: Literal["dev.narrator_down"]
+    on: bool
 
 
 class AnswerSubmit(BaseModel):
@@ -49,6 +59,20 @@ class StrategyApply(BaseModel):
     advice_id: str
 
 
+class RecapRequest(BaseModel):
+    """A catch-up recap on demand (spec 3, 9.4)."""
+
+    type: Literal["recap.request"]
+    kind: Literal["catch_up"] = "catch_up"
+
+
+class DefinitionRequest(BaseModel):
+    """Tap a stat or cue for a one-line explanation (spec 5.1). Not in 9.4's list: added."""
+
+    type: Literal["definition.request"]
+    term: str = Field(max_length=40)
+
+
 class ProfileSet(BaseModel):
     """Profile fields. The card is built before kickoff, so mid-match only the strategist
     setting, handle and language change; mode, club and focus player stay as built."""
@@ -60,7 +84,8 @@ class ProfileSet(BaseModel):
     language: str | None = None
 
 
-Client = ReplaySpeed | DevPause | DevJump | AnswerSubmit | BoardMove | StrategyApply | ProfileSet
+Client = (ReplaySpeed | DevPause | DevJump | DevNarratorDown | AnswerSubmit | BoardMove
+          | StrategyApply | ProfileSet | RecapRequest | DefinitionRequest)
 ClientMessage = Annotated[Client, Field(discriminator="type")]
 client_message: TypeAdapter[Client] = TypeAdapter(ClientMessage)
 

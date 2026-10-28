@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { announcedOpen } from "./card/rules";
 import { canAnswer } from "./components/AnswerPopover";
 import { Card } from "./components/Card";
+import { DevPanel } from "./components/DevPanel";
 import { Feed } from "./components/Feed";
 import { FullTime } from "./components/FullTime";
 import { Leaderboard } from "./components/Leaderboard";
@@ -27,7 +28,8 @@ export default function App() {
 }
 
 function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
-  const { state, frames, setSpeed, answer, move, applyAdvice } = session;
+  const { state, frames, setSpeed, answer, move, applyAdvice, catchUp, define, dev } = session;
+  const [devOpen, setDevOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("normal");
   const [selected, setSelected] = useState<string | null>(null);
   const [fullTimeClosed, setFullTimeClosed] = useState(false);
@@ -64,7 +66,12 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
   return (
     <div className="app">
       <TopBar roster={roster} score={state.stats?.score} anchor={state.anchor} fullTime={state.fullTime}
-        frames={frames} speed={state.speed} onSpeed={setSpeed} mode={mode} onMode={setMode} />
+        frames={frames} speed={state.speed} onSpeed={setSpeed} mode={mode} onMode={setMode}
+        devOpen={devOpen} onDev={() => setDevOpen((o) => !o)} />
+      {devOpen && (
+        <DevPanel health={state.health} paused={state.paused} narratorDown={state.narratorDown}
+          onPause={dev.pause} onJump={dev.jump} onNarratorDown={dev.narratorDown} />
+      )}
       {state.status === "error" && <p className="banner" role="alert">{t("app.error")}</p>}
       <p className="visually-hidden" aria-live="assertive">{state.announcement}</p>
       {noticeShown && state.notice && (
@@ -75,10 +82,11 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
           <Pitch roster={roster} frames={frames} cues={state.cues}
             cards={masked.has("cards") ? {} : state.cards} ball={state.ball} reducedMotion={reducedMotion}
             onPick={picking && square ? (id) => answer(square.id, id) : undefined} />
-          <Feed entries={state.feed} masked={masked} />
+          <Feed entries={state.feed} masked={masked} onCatchUp={catchUp} />
         </div>
         <div className="right">
-          <Metrics roster={roster} stats={state.stats} xg={state.xg} mode={mode} />
+          <Metrics roster={roster} stats={state.stats} xg={state.xg} mode={mode}
+            definition={state.definition} onDefine={define} />
           <Card board={board} roster={roster} language={language} pending={state.pending}
             answers={state.answers} advice={state.advice} selected={selected} onSelect={setSelected}
             onAnswer={answer} onMove={move} />
@@ -89,6 +97,7 @@ function Match({ session }: { session: ReturnType<typeof useMatchSession> }) {
       {showFullTime && (
         <FullTime roster={roster} score={state.stats?.score} board={board} moments={state.moments}
           leaderboard={state.leaderboard} total={state.ranked} mode={profile.mode}
+          recap={state.recaps.full_time}
           onClose={() => setFullTimeClosed(true)} />
       )}
     </div>
